@@ -23,4 +23,9 @@ export {
 
 // Funciones principales
 export { extraerDatosConIA } from './extractor';
-export { generarDocumentoConIA, modificarDocumentoConChat } from './generador';
+export {
+  generarDocumentoConIA,
+  modificarDocumentoConChat,
+  numeroATexto,
+  formatearPrecioLegal
+} from './generador';

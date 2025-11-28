@@ -2,11 +2,26 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CampoFormulario, DatosExtraidos } from '@/types';
+import { CampoFormulario } from '@/types';
 import {
   NOMBRES_SECCIONES,
   agruparCamposPorSeccion
 } from '@/lib/config/tipos-caso';
+
+// ============================================================================
+// TIPOS
+// ============================================================================
+
+interface DatosExtraidos {
+  [seccion: string]: {
+    [campo: string]: {
+      valor: string | null;
+      confianza: number;
+      fuente?: string;
+      requiereRevision: boolean;
+    };
+  };
+}
 
 interface FormularioDinamicoProps {
   campos: CampoFormulario[];
@@ -16,6 +31,10 @@ interface FormularioDinamicoProps {
   modoLectura?: boolean;
 }
 
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
 export default function FormularioDinamico({
   campos,
   datosExtraidos,
@@ -23,22 +42,65 @@ export default function FormularioDinamico({
   onChange,
   modoLectura = false
 }: FormularioDinamicoProps) {
+  // Agrupar campos por sección
   const camposPorSeccion = useMemo(
     () => agruparCamposPorSeccion(campos),
     [campos]
   );
+  const secciones = Object.keys(camposPorSeccion);
 
-  // Estado para secciones expandidas/colapsadas
+  // Estado de secciones expandidas (primeras 3 abiertas por defecto)
   const [seccionesExpandidas, setSeccionesExpandidas] = useState<
     Record<string, boolean>
   >(() => {
-    // Por defecto, expandir las primeras 3 secciones
     const inicial: Record<string, boolean> = {};
-    Object.keys(camposPorSeccion).forEach((seccion, index) => {
+    secciones.forEach((seccion, index) => {
       inicial[seccion] = index < 3;
     });
     return inicial;
   });
+
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
+
+  // Obtener estado de un campo desde datosExtraidos
+  const getEstadoCampo = (campoId: string) => {
+    if (!datosExtraidos) return null;
+    for (const seccion of Object.values(datosExtraidos)) {
+      if (seccion[campoId]) {
+        return seccion[campoId];
+      }
+    }
+    return null;
+  };
+
+  // Calcular progreso total
+  const calcularProgresoTotal = () => {
+    const camposRequeridos = campos.filter((c) => c.requerido);
+    if (camposRequeridos.length === 0) return 100;
+    const completados = camposRequeridos.filter((c) =>
+      valores[c.id]?.trim()
+    ).length;
+    return Math.round((completados / camposRequeridos.length) * 100);
+  };
+
+  // Calcular progreso de una sección
+  const calcularProgresoSeccion = (seccion: string) => {
+    const camposSeccion = camposPorSeccion[seccion] || [];
+    const requeridos = camposSeccion.filter((c) => c.requerido);
+    if (requeridos.length === 0) return 100;
+    const completados = requeridos.filter((c) => valores[c.id]?.trim()).length;
+    return Math.round((completados / requeridos.length) * 100);
+  };
+
+  // Contar campos de una sección
+  const contarCamposSeccion = (seccion: string) => {
+    const camposSeccion = camposPorSeccion[seccion] || [];
+    const requeridos = camposSeccion.filter((c) => c.requerido);
+    const completados = requeridos.filter((c) => valores[c.id]?.trim()).length;
+    return { completados, total: requeridos.length };
+  };
 
   // Toggle sección
   const toggleSeccion = (seccion: string) => {
@@ -50,62 +112,36 @@ export default function FormularioDinamico({
 
   // Expandir/colapsar todas
   const expandirTodas = () => {
-    const todas: Record<string, boolean> = {};
-    Object.keys(camposPorSeccion).forEach((seccion) => {
-      todas[seccion] = true;
-    });
-    setSeccionesExpandidas(todas);
+    const nuevas: Record<string, boolean> = {};
+    secciones.forEach((s) => (nuevas[s] = true));
+    setSeccionesExpandidas(nuevas);
   };
 
   const colapsarTodas = () => {
-    const todas: Record<string, boolean> = {};
-    Object.keys(camposPorSeccion).forEach((seccion) => {
-      todas[seccion] = false;
-    });
-    setSeccionesExpandidas(todas);
+    const nuevas: Record<string, boolean> = {};
+    secciones.forEach((s) => (nuevas[s] = false));
+    setSeccionesExpandidas(nuevas);
   };
 
-  // Obtener el estado de un campo (si tiene datos extraídos)
-  const getEstadoCampo = (campoId: string) => {
-    if (!datosExtraidos) return null;
-
-    for (const seccion of Object.values(datosExtraidos)) {
-      if (seccion[campoId]) {
-        return seccion[campoId];
-      }
-    }
-    return null;
-  };
-
-  // Calcular progreso de una sección
-  const calcularProgresoSeccion = (camposSeccion: CampoFormulario[]) => {
-    const requeridos = camposSeccion.filter((c) => c.requerido);
-    if (requeridos.length === 0) return 100;
-
-    const completados = requeridos.filter(
-      (c) => valores[c.id] && valores[c.id].trim() !== ''
-    );
-    return Math.round((completados.length / requeridos.length) * 100);
-  };
-
-  // Contar campos completados en una sección
-  const contarCamposSeccion = (camposSeccion: CampoFormulario[]) => {
-    const completados = camposSeccion.filter(
-      (c) => valores[c.id] && valores[c.id].trim() !== ''
-    );
-    return { completados: completados.length, total: camposSeccion.length };
-  };
-
-  // Determinar el estilo del input basado en el estado
+  // Determinar estilo del input según confianza
   const getInputClassName = (campoId: string, campo: CampoFormulario) => {
     const estado = getEstadoCampo(campoId);
+    const tieneValor = valores[campoId]?.trim();
+    const esRequerido = campo.requerido;
+
     const baseClass =
-      'w-full px-3 py-2 rounded-lg text-gray-900 dark:text-white transition-colors text-sm';
+      'w-full px-4 py-2 rounded-lg text-gray-900 dark:text-white transition-colors';
 
     if (modoLectura) {
       return `${baseClass} bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 cursor-not-allowed`;
     }
 
+    // Campo requerido sin valor
+    if (esRequerido && !tieneValor) {
+      return `${baseClass} bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-600 focus:ring-2 focus:ring-red-500 focus:border-transparent`;
+    }
+
+    // Campo con datos extraídos
     if (estado) {
       if (estado.requiereRevision) {
         return `${baseClass} bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent`;
@@ -118,16 +154,12 @@ export default function FormularioDinamico({
       }
     }
 
-    // Resaltar campos requeridos vacíos
-    if (
-      campo.requerido &&
-      (!valores[campoId] || valores[campoId].trim() === '')
-    ) {
-      return `${baseClass} bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent`;
-    }
-
     return `${baseClass} bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent`;
   };
+
+  // ============================================================================
+  // RENDER DE CAMPO
+  // ============================================================================
 
   const renderCampo = (campo: CampoFormulario) => {
     const valor = valores[campo.id] || '';
@@ -135,18 +167,20 @@ export default function FormularioDinamico({
 
     return (
       <div key={campo.id} className="relative">
+        {/* Label */}
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           {campo.nombre}
           {campo.requerido && <span className="text-red-500 ml-1">*</span>}
         </label>
 
+        {/* Input según tipo */}
         {campo.tipo === 'textarea' ? (
           <textarea
             value={valor}
             onChange={(e) => onChange(campo.id, e.target.value)}
             placeholder={campo.placeholder}
             disabled={modoLectura}
-            rows={2}
+            rows={3}
             className={getInputClassName(campo.id, campo)}
           />
         ) : campo.tipo === 'select' ? (
@@ -176,7 +210,7 @@ export default function FormularioDinamico({
 
         {/* Indicador de confianza */}
         {estado && (
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
             {estado.confianza >= 0.8 ? (
               <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <svg
@@ -235,45 +269,49 @@ export default function FormularioDinamico({
     );
   };
 
-  // Calcular progreso total
-  const progresoTotal = useMemo(() => {
-    const todosRequeridos = campos.filter((c) => c.requerido);
-    if (todosRequeridos.length === 0) return 100;
-    const completados = todosRequeridos.filter(
-      (c) => valores[c.id] && valores[c.id].trim() !== ''
-    );
-    return Math.round((completados.length / todosRequeridos.length) * 100);
-  }, [campos, valores]);
+  // ============================================================================
+  // RENDER PRINCIPAL
+  // ============================================================================
+
+  const progresoTotal = calcularProgresoTotal();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Barra de progreso general */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Progreso General
-          </span>
-          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+          </h3>
+          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
             {progresoTotal}%
           </span>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className={`h-2.5 rounded-full transition-all duration-300 ${
+              progresoTotal === 100
+                ? 'bg-green-600'
+                : progresoTotal >= 70
+                ? 'bg-blue-600'
+                : progresoTotal >= 40
+                ? 'bg-yellow-500'
+                : 'bg-red-500'
+            }`}
             style={{ width: `${progresoTotal}%` }}
           />
         </div>
-        <div className="mt-3 flex gap-2">
+
+        {/* Botones expandir/colapsar */}
+        <div className="flex gap-2 mt-3">
           <button
-            type="button"
             onClick={expandirTodas}
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
           >
             Expandir todas
           </button>
-          <span className="text-gray-300 dark:text-gray-600">|</span>
+          <span className="text-gray-400">|</span>
           <button
-            type="button"
             onClick={colapsarTodas}
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
           >
@@ -282,11 +320,12 @@ export default function FormularioDinamico({
         </div>
       </div>
 
-      {/* Secciones colapsables */}
-      {Object.entries(camposPorSeccion).map(([seccion, camposSeccion]) => {
-        const progreso = calcularProgresoSeccion(camposSeccion);
-        const { completados, total } = contarCamposSeccion(camposSeccion);
+      {/* Secciones */}
+      {secciones.map((seccion) => {
+        const camposSeccion = camposPorSeccion[seccion];
         const expandida = seccionesExpandidas[seccion];
+        const progreso = calcularProgresoSeccion(seccion);
+        const { completados, total } = contarCamposSeccion(seccion);
 
         return (
           <div
@@ -295,11 +334,11 @@ export default function FormularioDinamico({
           >
             {/* Header de sección (clickeable) */}
             <button
-              type="button"
               onClick={() => toggleSeccion(seccion)}
-              className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <div className="flex items-center gap-3">
+                {/* Icono de expansión */}
                 <svg
                   className={`w-5 h-5 text-gray-500 transition-transform ${
                     expandida ? 'rotate-90' : ''
@@ -315,48 +354,36 @@ export default function FormularioDinamico({
                     d="M9 5l7 7-7 7"
                   />
                 </svg>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+
+                {/* Nombre de sección */}
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   {NOMBRES_SECCIONES[seccion] || seccion}
                 </h3>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  ({completados}/{total})
+
+                {/* Contador de campos */}
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  ({completados}/{total} campos)
                 </span>
               </div>
 
               {/* Mini barra de progreso */}
               <div className="flex items-center gap-2">
-                <div className="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                   <div
-                    className={`h-1.5 rounded-full transition-all ${
-                      progreso === 100
-                        ? 'bg-green-500'
-                        : progreso > 50
-                        ? 'bg-blue-500'
-                        : 'bg-orange-500'
+                    className={`h-1.5 rounded-full ${
+                      progreso === 100 ? 'bg-green-600' : 'bg-blue-600'
                     }`}
                     style={{ width: `${progreso}%` }}
                   />
                 </div>
-                {progreso === 100 && (
-                  <svg
-                    className="w-4 h-4 text-green-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
+                <span className="text-xs text-gray-500 w-8">{progreso}%</span>
               </div>
             </button>
 
             {/* Contenido de sección */}
             {expandida && (
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="grid md:grid-cols-2 gap-4">
+              <div className="px-6 pb-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid md:grid-cols-2 gap-4 pt-4">
                   {camposSeccion.map((campo) => (
                     <div
                       key={campo.id}

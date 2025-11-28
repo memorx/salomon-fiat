@@ -47,13 +47,13 @@ export const TIPOS_DOCUMENTO: TipoDocumento[] = [
     id: 'escritura_propiedad',
     nombre: 'Escritura de Propiedad',
     descripcion: 'Escritura pública del inmueble',
-    requerido: true
+    requerido: false
   },
   {
     id: 'predial',
     nombre: 'Recibo Predial',
     descripcion: 'Último recibo de pago del predial',
-    requerido: true
+    requerido: false
   },
   {
     id: 'constancia_no_adeudo',
@@ -64,7 +64,7 @@ export const TIPOS_DOCUMENTO: TipoDocumento[] = [
   {
     id: 'avaluo',
     nombre: 'Avalúo',
-    descripcion: 'Avalúo comercial o fiscal del inmueble',
+    descripcion: 'Avalúo comercial del inmueble',
     requerido: false
   },
   {
@@ -74,28 +74,21 @@ export const TIPOS_DOCUMENTO: TipoDocumento[] = [
     requerido: false
   },
   {
+    id: 'poder_previo',
+    nombre: 'Poder Previo',
+    descripcion: 'Poder notarial previo (si existe)',
+    requerido: false
+  },
+  {
     id: 'certificado_libertad_gravamen',
     nombre: 'Certificado de Libertad de Gravamen',
-    descripcion: 'Certificado del Registro Público de la Propiedad',
-    requerido: false
-  },
-  {
-    id: 'permiso_sre',
-    nombre: 'Permiso SRE',
-    descripcion:
-      'Permiso de la Secretaría de Relaciones Exteriores (si aplica)',
-    requerido: false
-  },
-  {
-    id: 'poder_notarial',
-    nombre: 'Poder Notarial',
-    descripcion: 'Poder notarial del representante legal (si aplica)',
+    descripcion: 'Certificado del Registro Público',
     requerido: false
   },
   {
     id: 'acta_constitutiva',
     nombre: 'Acta Constitutiva',
-    descripcion: 'Acta constitutiva de la sociedad (si aplica)',
+    descripcion: 'Para personas morales',
     requerido: false
   },
   {
@@ -107,11 +100,9 @@ export const TIPOS_DOCUMENTO: TipoDocumento[] = [
 ];
 
 // ============================================================================
-// CAMPOS PARA COMPRAVENTA DE INMUEBLE
-// Basados en los modelos de escritura pública proporcionados
+// CAMPOS POR SECCIÓN - COMPRAVENTA INMUEBLE (135 campos)
 // ============================================================================
 
-// --- SECCIÓN: DATOS DEL NOTARIO ---
 const CAMPOS_NOTARIO: CampoFormulario[] = [
   {
     id: 'notario_nombre',
@@ -119,7 +110,7 @@ const CAMPOS_NOTARIO: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'notario',
-    placeholder: 'Lic. Nombre Completo del Notario'
+    placeholder: 'Lic. Juan Pérez García'
   },
   {
     id: 'notario_numero',
@@ -127,71 +118,69 @@ const CAMPOS_NOTARIO: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'notario',
-    placeholder: 'Ej: 157'
+    placeholder: '157'
   },
   {
     id: 'notario_estado',
-    nombre: 'Estado de la Notaría',
+    nombre: 'Estado',
     tipo: 'text',
     requerido: true,
     seccion: 'notario',
-    placeholder: 'Ej: Michoacán'
+    placeholder: 'Michoacán'
   },
   {
     id: 'notario_ciudad',
-    nombre: 'Ciudad de la Notaría',
+    nombre: 'Ciudad/Municipio',
     tipo: 'text',
     requerido: true,
     seccion: 'notario',
-    placeholder: 'Ej: Quiroga'
+    placeholder: 'Quiroga'
   }
 ];
 
-// --- SECCIÓN: FECHA DE OTORGAMIENTO ---
 const CAMPOS_FECHA: CampoFormulario[] = [
   {
     id: 'fecha_dia',
-    nombre: 'Día del Otorgamiento',
-    tipo: 'text',
+    nombre: 'Día',
+    tipo: 'number',
     requerido: true,
-    seccion: 'fecha_otorgamiento',
-    placeholder: 'Ej: veintiocho'
+    seccion: 'fecha',
+    placeholder: '28'
   },
   {
     id: 'fecha_mes',
-    nombre: 'Mes del Otorgamiento',
+    nombre: 'Mes',
     tipo: 'text',
     requerido: true,
-    seccion: 'fecha_otorgamiento',
-    placeholder: 'Ej: enero'
+    seccion: 'fecha',
+    placeholder: 'enero'
   },
   {
     id: 'fecha_ano',
-    nombre: 'Año del Otorgamiento',
-    tipo: 'text',
+    nombre: 'Año',
+    tipo: 'number',
     requerido: true,
-    seccion: 'fecha_otorgamiento',
-    placeholder: 'Ej: dos mil veinticuatro'
+    seccion: 'fecha',
+    placeholder: '2025'
   },
   {
     id: 'fecha_hora',
-    nombre: 'Hora del Otorgamiento',
+    nombre: 'Hora',
     tipo: 'text',
     requerido: false,
-    seccion: 'fecha_otorgamiento',
-    placeholder: 'Ej: 11:00 once horas'
+    seccion: 'fecha',
+    placeholder: '12:00'
   }
 ];
 
-// --- SECCIÓN: DATOS DEL VENDEDOR ---
 const CAMPOS_VENDEDOR: CampoFormulario[] = [
   {
     id: 'vendedor_nombre',
-    nombre: 'Nombre Completo del Vendedor',
+    nombre: 'Nombre Completo',
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'Nombre(s) y Apellidos'
+    placeholder: 'Juan Pérez García'
   },
   {
     id: 'vendedor_nacionalidad',
@@ -199,7 +188,7 @@ const CAMPOS_VENDEDOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'Mexicano(a) por nacimiento'
+    placeholder: 'Mexicana'
   },
   {
     id: 'vendedor_estado_civil',
@@ -221,7 +210,7 @@ const CAMPOS_VENDEDOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'Ej: Comerciante, Empleado, etc.'
+    placeholder: 'Comerciante'
   },
   {
     id: 'vendedor_lugar_origen',
@@ -229,47 +218,22 @@ const CAMPOS_VENDEDOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'Ciudad y Estado de nacimiento'
+    placeholder: 'Morelia, Michoacán'
   },
   {
     id: 'vendedor_fecha_nacimiento',
     nombre: 'Fecha de Nacimiento',
-    tipo: 'text',
+    tipo: 'date',
     requerido: true,
-    seccion: 'vendedor',
-    placeholder: 'Ej: 30 de abril de 1961'
+    seccion: 'vendedor'
   },
   {
     id: 'vendedor_edad',
     nombre: 'Edad',
-    tipo: 'text',
+    tipo: 'number',
     requerido: false,
     seccion: 'vendedor',
-    placeholder: 'Ej: 62 años'
-  },
-  {
-    id: 'vendedor_domicilio',
-    nombre: 'Domicilio',
-    tipo: 'textarea',
-    requerido: true,
-    seccion: 'vendedor',
-    placeholder: 'Calle, número, colonia, código postal, ciudad, estado'
-  },
-  {
-    id: 'vendedor_colonia',
-    nombre: 'Colonia',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'vendedor',
-    placeholder: 'Nombre de la colonia'
-  },
-  {
-    id: 'vendedor_cp',
-    nombre: 'Código Postal',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'vendedor',
-    placeholder: 'Ej: 58420'
+    placeholder: '45'
   },
   {
     id: 'vendedor_curp',
@@ -277,52 +241,72 @@ const CAMPOS_VENDEDOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'XXXX000000XXXXXX00'
+    placeholder: 'PEGJ800101HMNRRC09'
   },
   {
     id: 'vendedor_rfc',
     nombre: 'RFC',
     tipo: 'text',
-    requerido: false,
+    requerido: true,
     seccion: 'vendedor',
-    placeholder: 'XXXX000000XXX'
+    placeholder: 'PEGJ800101XXX'
   },
   {
     id: 'vendedor_ine',
-    nombre: 'Número de INE/Credencial para Votar',
+    nombre: 'Clave de Elector INE',
     tipo: 'text',
     requerido: true,
     seccion: 'vendedor',
-    placeholder: 'Número IDMEX'
+    placeholder: 'ABCDEF12345678'
   },
-  // Datos del cónyuge (si aplica)
   {
-    id: 'vendedor_conyuge_nombre',
-    nombre: 'Nombre del Cónyuge (si aplica)',
+    id: 'vendedor_domicilio',
+    nombre: 'Domicilio',
+    tipo: 'textarea',
+    requerido: true,
+    seccion: 'vendedor',
+    placeholder: 'Calle, número, colonia'
+  },
+  {
+    id: 'vendedor_colonia',
+    nombre: 'Colonia',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'vendedor'
+  },
+  {
+    id: 'vendedor_cp',
+    nombre: 'Código Postal',
     tipo: 'text',
     requerido: false,
     seccion: 'vendedor',
-    placeholder: 'Nombre completo del esposo(a)'
+    placeholder: '58000'
+  },
+  {
+    id: 'vendedor_conyuge_nombre',
+    nombre: 'Nombre del Cónyuge',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'vendedor',
+    placeholder: 'Si aplica'
   },
   {
     id: 'vendedor_conyuge_lugar_origen',
     nombre: 'Lugar de Origen del Cónyuge',
     tipo: 'text',
     requerido: false,
-    seccion: 'vendedor',
-    placeholder: 'Ciudad y Estado de nacimiento'
+    seccion: 'vendedor'
   }
 ];
 
-// --- SECCIÓN: DATOS DEL COMPRADOR ---
 const CAMPOS_COMPRADOR: CampoFormulario[] = [
   {
     id: 'comprador_nombre',
-    nombre: 'Nombre Completo del Comprador',
+    nombre: 'Nombre Completo',
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'Nombre(s) y Apellidos'
+    placeholder: 'María López Hernández'
   },
   {
     id: 'comprador_nacionalidad',
@@ -330,7 +314,7 @@ const CAMPOS_COMPRADOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'Mexicano(a) por nacimiento'
+    placeholder: 'Mexicana'
   },
   {
     id: 'comprador_estado_civil',
@@ -352,7 +336,7 @@ const CAMPOS_COMPRADOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'Ej: Comerciante, Empleado, etc.'
+    placeholder: 'Empleada'
   },
   {
     id: 'comprador_lugar_origen',
@@ -360,47 +344,22 @@ const CAMPOS_COMPRADOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'Ciudad y Estado de nacimiento'
+    placeholder: 'Pátzcuaro, Michoacán'
   },
   {
     id: 'comprador_fecha_nacimiento',
     nombre: 'Fecha de Nacimiento',
-    tipo: 'text',
+    tipo: 'date',
     requerido: true,
-    seccion: 'comprador',
-    placeholder: 'Ej: 8 de marzo de 1992'
+    seccion: 'comprador'
   },
   {
     id: 'comprador_edad',
     nombre: 'Edad',
-    tipo: 'text',
+    tipo: 'number',
     requerido: false,
     seccion: 'comprador',
-    placeholder: 'Ej: 32 años'
-  },
-  {
-    id: 'comprador_domicilio',
-    nombre: 'Domicilio',
-    tipo: 'textarea',
-    requerido: true,
-    seccion: 'comprador',
-    placeholder: 'Calle, número, colonia, código postal, ciudad, estado'
-  },
-  {
-    id: 'comprador_colonia',
-    nombre: 'Colonia',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'comprador',
-    placeholder: 'Nombre de la colonia'
-  },
-  {
-    id: 'comprador_cp',
-    nombre: 'Código Postal',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'comprador',
-    placeholder: 'Ej: 58420'
+    placeholder: '38'
   },
   {
     id: 'comprador_curp',
@@ -408,7 +367,7 @@ const CAMPOS_COMPRADOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'XXXX000000XXXXXX00'
+    placeholder: 'LOHM850215MMNPRC05'
   },
   {
     id: 'comprador_rfc',
@@ -416,154 +375,119 @@ const CAMPOS_COMPRADOR: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'XXXX000000XXX'
+    placeholder: 'LOHM850215XXX'
   },
   {
     id: 'comprador_ine',
-    nombre: 'Número de INE/Credencial para Votar',
+    nombre: 'Clave de Elector INE',
     tipo: 'text',
     requerido: true,
     seccion: 'comprador',
-    placeholder: 'Número IDMEX'
+    placeholder: 'XYZABC98765432'
   },
-  // Segundo comprador (si aplica - proindiviso)
   {
-    id: 'comprador2_nombre',
-    nombre: 'Nombre del Segundo Comprador (si aplica)',
+    id: 'comprador_domicilio',
+    nombre: 'Domicilio',
+    tipo: 'textarea',
+    requerido: true,
+    seccion: 'comprador',
+    placeholder: 'Calle, número, colonia'
+  },
+  {
+    id: 'comprador_colonia',
+    nombre: 'Colonia',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'comprador'
+  },
+  {
+    id: 'comprador_cp',
+    nombre: 'Código Postal',
     tipo: 'text',
     requerido: false,
     seccion: 'comprador',
-    placeholder: 'Para compras proindiviso/mancomunadas'
+    placeholder: '61600'
+  },
+  {
+    id: 'comprador_conyuge_nombre',
+    nombre: 'Nombre del Cónyuge',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'comprador',
+    placeholder: 'Si aplica'
+  },
+  {
+    id: 'comprador_conyuge_lugar_origen',
+    nombre: 'Lugar de Origen del Cónyuge',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'comprador'
+  },
+  {
+    id: 'comprador2_nombre',
+    nombre: 'Segundo Comprador (Nombre)',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'comprador',
+    placeholder: 'Si aplica proindiviso'
   },
   {
     id: 'comprador2_curp',
-    nombre: 'CURP del Segundo Comprador',
+    nombre: 'Segundo Comprador (CURP)',
     tipo: 'text',
     requerido: false,
-    seccion: 'comprador',
-    placeholder: 'XXXX000000XXXXXX00'
-  },
-  {
-    id: 'comprador2_rfc',
-    nombre: 'RFC del Segundo Comprador',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'comprador',
-    placeholder: 'XXXX000000XXX'
-  },
-  {
-    id: 'comprador2_ine',
-    nombre: 'INE del Segundo Comprador',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'comprador',
-    placeholder: 'Número IDMEX'
+    seccion: 'comprador'
   }
 ];
 
-// --- SECCIÓN: REPRESENTANTE LEGAL (si aplica persona moral) ---
 const CAMPOS_REPRESENTANTE: CampoFormulario[] = [
   {
     id: 'representante_nombre',
-    nombre: 'Nombre del Representante Legal',
+    nombre: 'Nombre del Representante',
     tipo: 'text',
     requerido: false,
-    seccion: 'representante_legal',
-    placeholder: 'Nombre completo del apoderado'
+    seccion: 'representante',
+    placeholder: 'Si aplica persona moral'
   },
   {
     id: 'representante_cargo',
-    nombre: 'Cargo del Representante',
+    nombre: 'Cargo',
     tipo: 'text',
     requerido: false,
-    seccion: 'representante_legal',
-    placeholder: 'Ej: Gerente General, Apoderado Legal'
+    seccion: 'representante',
+    placeholder: 'Apoderado Legal'
   },
   {
     id: 'representante_lugar_origen',
     nombre: 'Lugar de Origen',
     tipo: 'text',
     requerido: false,
-    seccion: 'representante_legal',
-    placeholder: 'Ciudad y Estado de nacimiento'
+    seccion: 'representante'
   },
   {
     id: 'representante_edad',
     nombre: 'Edad',
-    tipo: 'text',
+    tipo: 'number',
     requerido: false,
-    seccion: 'representante_legal',
-    placeholder: 'Ej: 45 años'
+    seccion: 'representante'
   },
   {
     id: 'representante_ocupacion',
     nombre: 'Ocupación',
     tipo: 'text',
     requerido: false,
-    seccion: 'representante_legal',
-    placeholder: 'Actividad profesional'
+    seccion: 'representante'
   },
   {
     id: 'representante_estado_civil',
     nombre: 'Estado Civil',
     tipo: 'select',
     requerido: false,
-    seccion: 'representante_legal',
-    opciones: [
-      'Soltero(a)',
-      'Casado(a)',
-      'Divorciado(a)',
-      'Viudo(a)',
-      'Unión Libre'
-    ]
+    seccion: 'representante',
+    opciones: ['Soltero(a)', 'Casado(a)', 'Divorciado(a)', 'Viudo(a)']
   }
 ];
 
-// --- SECCIÓN: DATOS DE LA SOCIEDAD (si aplica) ---
-const CAMPOS_SOCIEDAD: CampoFormulario[] = [
-  {
-    id: 'sociedad_vendedora_nombre',
-    nombre: 'Razón Social de la Sociedad Vendedora',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'sociedad',
-    placeholder: 'Nombre legal de la empresa vendedora'
-  },
-  {
-    id: 'sociedad_compradora_nombre',
-    nombre: 'Razón Social de la Sociedad Compradora',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'sociedad',
-    placeholder: 'Nombre legal de la empresa compradora'
-  },
-  {
-    id: 'sociedad_constituida_nombre',
-    nombre: 'Nombre de la Sociedad Constituida',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'sociedad',
-    placeholder: 'Para casos de aportación a sociedad'
-  },
-  {
-    id: 'sociedad_beneficiaria_nombre',
-    nombre: 'Nombre de la Sociedad Beneficiaria',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'sociedad',
-    placeholder: 'Sociedad autorizada por SRE'
-  },
-  {
-    id: 'sociedad_integradora_nombre',
-    nombre: 'Nombre de la Sociedad Integradora',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'sociedad',
-    placeholder: 'Para integración de predios'
-  }
-];
-
-// --- SECCIÓN: DATOS DEL INMUEBLE ---
 const CAMPOS_INMUEBLE: CampoFormulario[] = [
   {
     id: 'inmueble_tipo',
@@ -572,12 +496,11 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     requerido: true,
     seccion: 'inmueble',
     opciones: [
-      'Lote de Terreno',
-      'Casa Habitación',
+      'Casa habitación',
+      'Terreno',
       'Departamento',
-      'Local Comercial',
-      'Edificio',
-      'Fracción de Terreno',
+      'Local comercial',
+      'Bodega',
       'Otro'
     ]
   },
@@ -587,7 +510,7 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Ej: 10'
+    placeholder: '15'
   },
   {
     id: 'inmueble_numero_manzana',
@@ -595,15 +518,15 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Ej: H'
+    placeholder: '3'
   },
   {
     id: 'inmueble_numero_casa',
-    nombre: 'Número de Casa/Edificio',
+    nombre: 'Número Exterior',
     tipo: 'text',
-    requerido: false,
+    requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Número exterior'
+    placeholder: '123'
   },
   {
     id: 'inmueble_calle',
@@ -611,15 +534,15 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Nombre de la calle'
+    placeholder: 'Av. Juárez'
   },
   {
     id: 'inmueble_fraccionamiento',
-    nombre: 'Nombre del Fraccionamiento',
+    nombre: 'Fraccionamiento',
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Ej: Hacienda de Quiroga'
+    placeholder: 'Si aplica'
   },
   {
     id: 'inmueble_colonia',
@@ -627,23 +550,23 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Nombre de la colonia'
+    placeholder: 'Centro'
   },
   {
     id: 'inmueble_colonia_anterior',
-    nombre: 'Colonia Anterior (si cambió de nombre)',
+    nombre: 'Colonia Anterior',
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Denominación histórica'
+    placeholder: 'Si cambió nombre'
   },
   {
     id: 'inmueble_municipio',
-    nombre: 'Municipio/Alcaldía',
+    nombre: 'Municipio',
     tipo: 'text',
     requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Ej: Quiroga'
+    placeholder: 'Morelia'
   },
   {
     id: 'inmueble_distrito',
@@ -651,7 +574,7 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Ej: Morelia'
+    placeholder: 'Morelia'
   },
   {
     id: 'inmueble_estado',
@@ -659,398 +582,217 @@ const CAMPOS_INMUEBLE: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Ej: Michoacán'
+    placeholder: 'Michoacán'
   },
   {
     id: 'inmueble_cp',
     nombre: 'Código Postal',
     tipo: 'text',
-    requerido: false,
+    requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Ej: 58420'
+    placeholder: '58000'
   },
   {
     id: 'inmueble_superficie',
-    nombre: 'Superficie Total (m²)',
+    nombre: 'Superficie Terreno (m²)',
     tipo: 'text',
     requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Ej: 96.00 (noventa y seis metros cuadrados)'
+    placeholder: '200.00'
   },
   {
     id: 'inmueble_superficie_construccion',
-    nombre: 'Superficie de Construcción (m²)',
+    nombre: 'Superficie Construcción (m²)',
     tipo: 'text',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Si aplica'
-  },
-  {
-    id: 'inmueble_calle_colindante',
-    nombre: 'Calle Colindante/Más Cercana',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'inmueble',
-    placeholder: 'Vía pública más cercana'
+    placeholder: '150.00'
   },
   {
     id: 'inmueble_cuenta_predial',
-    nombre: 'Número de Cuenta Predial',
+    nombre: 'Cuenta Predial',
     tipo: 'text',
-    requerido: false,
+    requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Número del recibo predial'
+    placeholder: '001-234-567'
   },
   {
     id: 'inmueble_clave_catastral',
     nombre: 'Clave Catastral',
     tipo: 'text',
-    requerido: false,
+    requerido: true,
     seccion: 'inmueble',
-    placeholder: 'Ej: 01-1005-1-006448'
+    placeholder: '16-001-001-001-001'
   },
   {
     id: 'inmueble_valor_catastral',
     nombre: 'Valor Catastral',
-    tipo: 'text',
+    tipo: 'number',
     requerido: false,
     seccion: 'inmueble',
-    placeholder: 'Ej: $5,394.00'
+    placeholder: '500000'
+  },
+  {
+    id: 'inmueble_calle_colindante',
+    nombre: 'Calle Colindante',
+    tipo: 'text',
+    requerido: false,
+    seccion: 'inmueble'
   }
 ];
 
-// --- SECCIÓN: LINDEROS Y MEDIDAS ---
 const CAMPOS_LINDEROS: CampoFormulario[] = [
   {
     id: 'lindero_norte',
-    nombre: 'Lindero Norte',
-    tipo: 'text',
+    nombre: 'Al Norte',
+    tipo: 'textarea',
     requerido: true,
     seccion: 'linderos',
-    placeholder: 'Ej: 6.00 metros con lote 12'
+    placeholder: '10.00 metros con propiedad de...'
   },
   {
     id: 'lindero_sur',
-    nombre: 'Lindero Sur',
-    tipo: 'text',
+    nombre: 'Al Sur',
+    tipo: 'textarea',
     requerido: true,
     seccion: 'linderos',
-    placeholder: 'Ej: 6.00 metros con calle Hacienda de los Reyes'
+    placeholder: '10.00 metros con calle...'
   },
   {
     id: 'lindero_oriente',
-    nombre: 'Lindero Oriente',
-    tipo: 'text',
+    nombre: 'Al Oriente',
+    tipo: 'textarea',
     requerido: true,
     seccion: 'linderos',
-    placeholder: 'Ej: 16.00 metros con lote 9'
+    placeholder: '20.00 metros con lote...'
   },
   {
     id: 'lindero_poniente',
-    nombre: 'Lindero Poniente',
-    tipo: 'text',
+    nombre: 'Al Poniente',
+    tipo: 'textarea',
     requerido: true,
     seccion: 'linderos',
-    placeholder: 'Ej: 16.00 metros con lote 11'
+    placeholder: '20.00 metros con propiedad de...'
   },
-  // Linderos adicionales para casos especiales
   {
     id: 'lindero_nororiente',
-    nombre: 'Lindero Nor-Oriente',
-    tipo: 'text',
+    nombre: 'Al Nororiente',
+    tipo: 'textarea',
     requerido: false,
     seccion: 'linderos',
-    placeholder: 'Si el predio tiene forma irregular'
+    placeholder: 'Si aplica terreno irregular'
   },
   {
     id: 'lindero_surponiente',
-    nombre: 'Lindero Sur-Poniente',
-    tipo: 'text',
+    nombre: 'Al Surponiente',
+    tipo: 'textarea',
     requerido: false,
     seccion: 'linderos',
-    placeholder: 'Si el predio tiene forma irregular'
-  },
-  {
-    id: 'lindero_oriente_sur',
-    nombre: 'Lindero Oriente-Sur',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'linderos',
-    placeholder: 'Si el predio tiene forma irregular'
-  },
-  // Linderos de fracción (para ventas parciales)
-  {
-    id: 'lindero_fraccion_norte',
-    nombre: 'Lindero Norte (Fracción)',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'linderos',
-    placeholder: 'Para venta parcial del terreno'
-  },
-  {
-    id: 'lindero_fraccion_sur',
-    nombre: 'Lindero Sur (Fracción)',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'linderos',
-    placeholder: 'Para venta parcial del terreno'
-  },
-  {
-    id: 'lindero_fraccion_oriente',
-    nombre: 'Lindero Oriente (Fracción)',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'linderos',
-    placeholder: 'Para venta parcial del terreno'
-  },
-  {
-    id: 'lindero_fraccion_poniente',
-    nombre: 'Lindero Poniente (Fracción)',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'linderos',
-    placeholder: 'Para venta parcial del terreno'
+    placeholder: 'Si aplica terreno irregular'
   }
 ];
 
-// --- SECCIÓN: ANTECEDENTES REGISTRALES ---
 const CAMPOS_ANTECEDENTES: CampoFormulario[] = [
   {
     id: 'antecedente_escritura_numero',
-    nombre: 'Número de Escritura Antecedente',
+    nombre: 'Número de Escritura Anterior',
     tipo: 'text',
     requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: 885'
+    seccion: 'antecedentes',
+    placeholder: '5432'
   },
   {
     id: 'antecedente_escritura_fecha',
-    nombre: 'Fecha de Escritura Antecedente',
-    tipo: 'text',
+    nombre: 'Fecha de Escritura',
+    tipo: 'date',
     requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: 20 de diciembre de 2004'
+    seccion: 'antecedentes'
   },
   {
     id: 'antecedente_notario_nombre',
-    nombre: 'Nombre del Notario Antecedente',
+    nombre: 'Notario que la otorgó',
     tipo: 'text',
     requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Nombre del notario que autorizó la escritura previa'
+    seccion: 'antecedentes',
+    placeholder: 'Lic. Pedro López'
   },
   {
     id: 'antecedente_notario_numero',
-    nombre: 'Número de Notaría Antecedente',
+    nombre: 'Número de Notaría',
     tipo: 'text',
     requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Número de la notaría previa'
+    seccion: 'antecedentes',
+    placeholder: '25'
   },
   {
     id: 'antecedente_adquirente',
-    nombre: 'Nombre del Adquirente Original',
+    nombre: 'Adquirente Original',
     tipo: 'text',
     requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Quien adquirió el inmueble previamente'
+    seccion: 'antecedentes'
   },
   {
     id: 'antecedente_enajenante',
-    nombre: 'Nombre del Enajenante Original',
+    nombre: 'Enajenante Original',
     tipo: 'text',
     requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Quien vendió el inmueble previamente'
+    seccion: 'antecedentes'
   },
-  // Datos de inscripción en el Registro Público
   {
     id: 'registro_numero',
-    nombre: 'Número de Registro',
+    nombre: 'Número de Inscripción',
     tipo: 'text',
     requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: 50'
+    seccion: 'antecedentes',
+    placeholder: '12345'
   },
   {
     id: 'registro_tomo',
     nombre: 'Tomo',
     tipo: 'text',
-    requerido: true,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: 6407'
+    requerido: false,
+    seccion: 'antecedentes'
   },
   {
     id: 'registro_libro',
     nombre: 'Libro',
     tipo: 'text',
     requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: PROPIEDAD'
+    seccion: 'antecedentes'
   },
   {
     id: 'registro_seccion',
     nombre: 'Sección',
     tipo: 'text',
     requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: Primera "A"'
-  },
-  {
-    id: 'registro_volumen',
-    nombre: 'Volumen',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Volumen del archivo registral'
-  },
-  {
-    id: 'registro_foja',
-    nombre: 'Foja',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Número de foja'
-  },
-  {
-    id: 'registro_partida',
-    nombre: 'Partida',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Número de partida'
+    seccion: 'antecedentes',
+    placeholder: 'Primera'
   },
   {
     id: 'registro_distrito',
-    nombre: 'Distrito del Registro',
+    nombre: 'Distrito de Registro',
     tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ej: Morelia'
-  },
-  {
-    id: 'registro_ciudad',
-    nombre: 'Ciudad del Registro',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Ciudad donde se registró'
+    requerido: true,
+    seccion: 'antecedentes',
+    placeholder: 'Morelia'
   },
   {
     id: 'registro_fecha',
-    nombre: 'Fecha de Registro',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'antecedentes_registrales',
-    placeholder: 'Fecha de inscripción'
+    nombre: 'Fecha de Inscripción',
+    tipo: 'date',
+    requerido: true,
+    seccion: 'antecedentes'
   }
 ];
 
-// --- SECCIÓN: DATOS DE CONSTITUCIÓN DE SOCIEDAD (si aplica) ---
-const CAMPOS_CONSTITUCION: CampoFormulario[] = [
-  {
-    id: 'constitucion_escritura_numero',
-    nombre: 'Número de Escritura Constitutiva',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'constitucion_sociedad',
-    placeholder: 'Número de la escritura de constitución'
-  },
-  {
-    id: 'constitucion_escritura_fecha',
-    nombre: 'Fecha de Escritura Constitutiva',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'constitucion_sociedad',
-    placeholder: 'Fecha de constitución de la sociedad'
-  },
-  {
-    id: 'constitucion_notario_nombre',
-    nombre: 'Notario de la Constitución',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'constitucion_sociedad',
-    placeholder: 'Nombre del notario que constituyó la sociedad'
-  },
-  {
-    id: 'constitucion_notario_numero',
-    nombre: 'Número de Notaría de Constitución',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'constitucion_sociedad',
-    placeholder: 'Número de la notaría'
-  },
-  {
-    id: 'constitucion_aportante',
-    nombre: 'Nombre del Aportante',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'constitucion_sociedad',
-    placeholder: 'Quien aportó el inmueble a la sociedad'
-  }
-];
-
-// --- SECCIÓN: PERMISOS (SRE, Fraccionamiento, etc.) ---
-const CAMPOS_PERMISOS: CampoFormulario[] = [
-  {
-    id: 'permiso_sre_numero',
-    nombre: 'Número de Permiso SRE',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Número de autorización de la SRE'
-  },
-  {
-    id: 'permiso_sre_expediente',
-    nombre: 'Expediente SRE',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Número de expediente de la solicitud'
-  },
-  {
-    id: 'permiso_sre_fecha',
-    nombre: 'Fecha de Emisión del Permiso SRE',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Fecha de expedición'
-  },
-  {
-    id: 'fraccionamiento_gaceta_numero',
-    nombre: 'Número de Publicación en Gaceta',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Número de la gaceta oficial'
-  },
-  {
-    id: 'fraccionamiento_gaceta_tomo',
-    nombre: 'Tomo de Gaceta',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Tomo de la publicación'
-  },
-  {
-    id: 'fraccionamiento_gaceta_fecha',
-    nombre: 'Fecha de Publicación en Gaceta',
-    tipo: 'text',
-    requerido: false,
-    seccion: 'permisos',
-    placeholder: 'Fecha de emisión del permiso'
-  }
-];
-
-// --- SECCIÓN: DATOS DE LA OPERACIÓN ---
 const CAMPOS_OPERACION: CampoFormulario[] = [
   {
     id: 'operacion_precio',
-    nombre: 'Precio de Venta',
-    tipo: 'text',
+    nombre: 'Precio de Venta (número)',
+    tipo: 'number',
     requerido: true,
     seccion: 'operacion',
-    placeholder: 'Ej: $100,000.00 (CIEN MIL PESOS 00/100 M.N.)'
+    placeholder: '1500000'
   },
   {
     id: 'operacion_precio_letra',
@@ -1058,7 +800,7 @@ const CAMPOS_OPERACION: CampoFormulario[] = [
     tipo: 'text',
     requerido: true,
     seccion: 'operacion',
-    placeholder: 'CIEN MIL PESOS 00/100 MONEDA NACIONAL'
+    placeholder: 'UN MILLÓN QUINIENTOS MIL PESOS'
   },
   {
     id: 'operacion_forma_pago',
@@ -1068,19 +810,18 @@ const CAMPOS_OPERACION: CampoFormulario[] = [
     seccion: 'operacion',
     opciones: [
       'Efectivo',
-      'Transferencia Bancaria',
-      'Cheque',
-      'Crédito Hipotecario',
+      'Transferencia bancaria',
+      'Cheque certificado',
+      'Crédito hipotecario',
       'Mixto'
     ]
   },
   {
     id: 'operacion_fianza_monto',
-    nombre: 'Monto de Fianza/Garantía (si aplica)',
-    tipo: 'text',
+    nombre: 'Monto de Fianza/Anticipo',
+    tipo: 'number',
     requerido: false,
-    seccion: 'operacion',
-    placeholder: 'Cantidad entregada como garantía'
+    seccion: 'operacion'
   },
   {
     id: 'operacion_tipo_adquisicion',
@@ -1088,11 +829,10 @@ const CAMPOS_OPERACION: CampoFormulario[] = [
     tipo: 'select',
     requerido: false,
     seccion: 'operacion',
-    opciones: ['Individual', 'Mancomunada', 'Proindiviso', 'Por partes iguales']
+    opciones: ['Compraventa', 'Donación', 'Herencia', 'Adjudicación']
   }
 ];
 
-// --- SECCIÓN: AVALÚO FISCAL ---
 const CAMPOS_AVALUO: CampoFormulario[] = [
   {
     id: 'avaluo_numero',
@@ -1100,44 +840,71 @@ const CAMPOS_AVALUO: CampoFormulario[] = [
     tipo: 'text',
     requerido: false,
     seccion: 'avaluo',
-    placeholder: 'Ej: 2022-245-277'
+    placeholder: 'AV-2025-001'
   },
   {
     id: 'avaluo_fecha',
     nombre: 'Fecha del Avalúo',
-    tipo: 'text',
+    tipo: 'date',
     requerido: false,
-    seccion: 'avaluo',
-    placeholder: 'Fecha de realización'
+    seccion: 'avaluo'
   },
   {
     id: 'avaluo_valor',
     nombre: 'Valor del Avalúo',
-    tipo: 'text',
+    tipo: 'number',
     requerido: false,
     seccion: 'avaluo',
-    placeholder: 'Ej: $6,816.00'
+    placeholder: '1600000'
   },
   {
     id: 'avaluo_perito',
     nombre: 'Nombre del Perito Valuador',
     tipo: 'text',
     requerido: false,
-    seccion: 'avaluo',
-    placeholder: 'Nombre del valuador autorizado'
+    seccion: 'avaluo'
   }
 ];
 
 // ============================================================================
-// TIPOS DE CASOS DISPONIBLES
+// NOMBRES DE SECCIONES
+// ============================================================================
+
+export const NOMBRES_SECCIONES: Record<string, string> = {
+  notario: 'Datos del Notario',
+  fecha: 'Fecha de la Escritura',
+  vendedor: 'Datos del Vendedor',
+  comprador: 'Datos del Comprador',
+  representante: 'Representante Legal',
+  inmueble: 'Datos del Inmueble',
+  linderos: 'Linderos y Medidas',
+  antecedentes: 'Antecedentes de Propiedad',
+  operacion: 'Datos de la Operación',
+  avaluo: 'Avalúo',
+  permisos: 'Permisos y Autorizaciones',
+  sociedad: 'Datos de Sociedad',
+  constitucion: 'Datos de Constitución',
+  poderdante: 'Datos del Poderdante',
+  apoderado: 'Datos del Apoderado',
+  poder: 'Datos del Poder',
+  testador: 'Datos del Testador',
+  disposiciones: 'Disposiciones Testamentarias',
+  arrendador: 'Datos del Arrendador',
+  arrendatario: 'Datos del Arrendatario',
+  inmueble_arrendado: 'Inmueble Arrendado',
+  condiciones: 'Condiciones del Arrendamiento',
+  asamblea: 'Datos de la Asamblea'
+};
+
+// ============================================================================
+// TIPOS DE CASOS
 // ============================================================================
 
 export const TIPOS_CASO: TipoCaso[] = [
   {
     id: 'compraventa_inmueble',
     nombre: 'Compraventa de Inmueble',
-    descripcion:
-      'Escritura pública de compra-venta de bienes raíces (terrenos, casas, departamentos, locales)',
+    descripcion: 'Escritura pública de compra-venta de bienes raíces',
     documentosSugeridos: [
       'ine_frente',
       'ine_reverso',
@@ -1155,14 +922,307 @@ export const TIPOS_CASO: TipoCaso[] = [
       ...CAMPOS_VENDEDOR,
       ...CAMPOS_COMPRADOR,
       ...CAMPOS_REPRESENTANTE,
-      ...CAMPOS_SOCIEDAD,
       ...CAMPOS_INMUEBLE,
       ...CAMPOS_LINDEROS,
       ...CAMPOS_ANTECEDENTES,
-      ...CAMPOS_CONSTITUCION,
-      ...CAMPOS_PERMISOS,
       ...CAMPOS_OPERACION,
       ...CAMPOS_AVALUO
+    ]
+  },
+  {
+    id: 'poder_notarial',
+    nombre: 'Poder Notarial',
+    descripcion: 'Poder general o especial para representación legal',
+    documentosSugeridos: [
+      'ine_frente',
+      'ine_reverso',
+      'curp',
+      'comprobante_domicilio'
+    ],
+    camposRequeridos: [
+      ...CAMPOS_NOTARIO,
+      ...CAMPOS_FECHA,
+      ...CAMPOS_VENDEDOR.map((c) => ({
+        ...c,
+        id: c.id.replace('vendedor_', 'poderdante_'),
+        seccion: 'poderdante'
+      })),
+      ...CAMPOS_COMPRADOR.slice(0, 13).map((c) => ({
+        ...c,
+        id: c.id.replace('comprador_', 'apoderado_'),
+        seccion: 'apoderado'
+      })),
+      {
+        id: 'tipo_poder',
+        nombre: 'Tipo de Poder',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'poder',
+        opciones: [
+          'General para Pleitos y Cobranzas',
+          'General para Actos de Administración',
+          'General para Actos de Dominio',
+          'Especial'
+        ]
+      },
+      {
+        id: 'facultades',
+        nombre: 'Facultades Específicas',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'poder',
+        placeholder: 'Describir las facultades que se otorgan'
+      },
+      {
+        id: 'vigencia',
+        nombre: 'Vigencia',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'poder',
+        opciones: [
+          'Indefinida',
+          '1 año',
+          '2 años',
+          '5 años',
+          'Hasta revocación'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'testamento',
+    nombre: 'Testamento Público Abierto',
+    descripcion: 'Testamento público abierto ante notario',
+    documentosSugeridos: [
+      'ine_frente',
+      'ine_reverso',
+      'curp',
+      'acta_nacimiento',
+      'comprobante_domicilio'
+    ],
+    camposRequeridos: [
+      ...CAMPOS_NOTARIO,
+      ...CAMPOS_FECHA,
+      ...CAMPOS_VENDEDOR.map((c) => ({
+        ...c,
+        id: c.id.replace('vendedor_', 'testador_'),
+        seccion: 'testador'
+      })),
+      {
+        id: 'herederos',
+        nombre: 'Herederos',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'disposiciones',
+        placeholder: 'Nombre completo y parentesco de cada heredero'
+      },
+      {
+        id: 'bienes',
+        nombre: 'Bienes a Heredar',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'disposiciones',
+        placeholder: 'Descripción de los bienes y su distribución'
+      },
+      {
+        id: 'albacea',
+        nombre: 'Albacea',
+        tipo: 'text' as const,
+        requerido: true,
+        seccion: 'disposiciones',
+        placeholder: 'Nombre del albacea designado'
+      },
+      {
+        id: 'albacea_suplente',
+        nombre: 'Albacea Suplente',
+        tipo: 'text' as const,
+        requerido: false,
+        seccion: 'disposiciones'
+      }
+    ]
+  },
+  {
+    id: 'constitucion_sociedad',
+    nombre: 'Constitución de Sociedad',
+    descripcion: 'Escritura de constitución de empresa',
+    documentosSugeridos: [
+      'ine_frente',
+      'ine_reverso',
+      'curp',
+      'comprobante_domicilio',
+      'rfc'
+    ],
+    camposRequeridos: [
+      ...CAMPOS_NOTARIO,
+      ...CAMPOS_FECHA,
+      {
+        id: 'denominacion_social',
+        nombre: 'Denominación Social',
+        tipo: 'text' as const,
+        requerido: true,
+        seccion: 'sociedad',
+        placeholder: 'Nombre de la empresa'
+      },
+      {
+        id: 'tipo_sociedad',
+        nombre: 'Tipo de Sociedad',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'sociedad',
+        opciones: [
+          'S.A. de C.V.',
+          'S. de R.L. de C.V.',
+          'S.A.S.',
+          'S.C.',
+          'A.C.'
+        ]
+      },
+      {
+        id: 'objeto_social',
+        nombre: 'Objeto Social',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'sociedad',
+        placeholder: 'Actividades de la empresa'
+      },
+      {
+        id: 'capital_social',
+        nombre: 'Capital Social',
+        tipo: 'number' as const,
+        requerido: true,
+        seccion: 'sociedad'
+      },
+      {
+        id: 'domicilio_social',
+        nombre: 'Domicilio Social',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'sociedad'
+      },
+      {
+        id: 'duracion',
+        nombre: 'Duración',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'sociedad',
+        opciones: ['99 años', 'Indefinida', 'Otra']
+      }
+    ]
+  },
+  {
+    id: 'acta_asamblea',
+    nombre: 'Acta de Asamblea',
+    descripcion: 'Protocolización de acta de asamblea de accionistas',
+    documentosSugeridos: ['ine_frente', 'ine_reverso', 'poder_previo'],
+    camposRequeridos: [
+      ...CAMPOS_NOTARIO,
+      ...CAMPOS_FECHA,
+      {
+        id: 'denominacion_sociedad',
+        nombre: 'Denominación de la Sociedad',
+        tipo: 'text' as const,
+        requerido: true,
+        seccion: 'sociedad'
+      },
+      {
+        id: 'tipo_asamblea',
+        nombre: 'Tipo de Asamblea',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'asamblea',
+        opciones: ['Ordinaria', 'Extraordinaria', 'Mixta']
+      },
+      {
+        id: 'fecha_asamblea',
+        nombre: 'Fecha de la Asamblea',
+        tipo: 'date' as const,
+        requerido: true,
+        seccion: 'asamblea'
+      },
+      {
+        id: 'orden_del_dia',
+        nombre: 'Orden del Día',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'asamblea'
+      },
+      {
+        id: 'acuerdos',
+        nombre: 'Acuerdos Tomados',
+        tipo: 'textarea' as const,
+        requerido: true,
+        seccion: 'asamblea'
+      }
+    ]
+  },
+  {
+    id: 'contrato_arrendamiento',
+    nombre: 'Contrato de Arrendamiento',
+    descripcion: 'Contrato de renta de inmueble',
+    documentosSugeridos: [
+      'ine_frente',
+      'ine_reverso',
+      'curp',
+      'comprobante_domicilio',
+      'escritura_propiedad'
+    ],
+    camposRequeridos: [
+      ...CAMPOS_NOTARIO,
+      ...CAMPOS_FECHA,
+      ...CAMPOS_VENDEDOR.map((c) => ({
+        ...c,
+        id: c.id.replace('vendedor_', 'arrendador_'),
+        seccion: 'arrendador'
+      })),
+      ...CAMPOS_COMPRADOR.slice(0, 13).map((c) => ({
+        ...c,
+        id: c.id.replace('comprador_', 'arrendatario_'),
+        seccion: 'arrendatario'
+      })),
+      ...CAMPOS_INMUEBLE.map((c) => ({ ...c, seccion: 'inmueble_arrendado' })),
+      {
+        id: 'renta_mensual',
+        nombre: 'Renta Mensual',
+        tipo: 'number' as const,
+        requerido: true,
+        seccion: 'condiciones'
+      },
+      {
+        id: 'deposito',
+        nombre: 'Depósito en Garantía',
+        tipo: 'number' as const,
+        requerido: true,
+        seccion: 'condiciones'
+      },
+      {
+        id: 'vigencia_contrato',
+        nombre: 'Vigencia del Contrato',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'condiciones',
+        opciones: ['1 año', '2 años', '3 años', 'Indefinido']
+      },
+      {
+        id: 'fecha_inicio',
+        nombre: 'Fecha de Inicio',
+        tipo: 'date' as const,
+        requerido: true,
+        seccion: 'condiciones'
+      },
+      {
+        id: 'uso_inmueble',
+        nombre: 'Uso del Inmueble',
+        tipo: 'select' as const,
+        requerido: true,
+        seccion: 'condiciones',
+        opciones: [
+          'Habitacional',
+          'Comercial',
+          'Oficinas',
+          'Industrial',
+          'Mixto'
+        ]
+      }
     ]
   }
 ];
@@ -1171,27 +1231,22 @@ export const TIPOS_CASO: TipoCaso[] = [
 // FUNCIONES HELPER
 // ============================================================================
 
-// Obtener un tipo de caso por ID
 export function getTipoCasoById(id: string): TipoCaso | undefined {
   return TIPOS_CASO.find((tipo) => tipo.id === id);
 }
 
-// Obtener un tipo de documento por ID
 export function getTipoDocumentoById(id: string): TipoDocumento | undefined {
   return TIPOS_DOCUMENTO.find((tipo) => tipo.id === id);
 }
 
-// Obtener documentos sugeridos de un tipo de caso
 export function getDocumentosSugeridos(tipoCasoId: string): TipoDocumento[] {
   const tipoCaso = getTipoCasoById(tipoCasoId);
   if (!tipoCaso) return [];
-
   return tipoCaso.documentosSugeridos
     .map((id) => getTipoDocumentoById(id))
     .filter((doc): doc is TipoDocumento => doc !== undefined);
 }
 
-// Agrupar campos por sección
 export function agruparCamposPorSeccion(
   campos: CampoFormulario[]
 ): Record<string, CampoFormulario[]> {
@@ -1204,48 +1259,21 @@ export function agruparCamposPorSeccion(
   }, {} as Record<string, CampoFormulario[]>);
 }
 
-// Nombres legibles para las secciones
-export const NOMBRES_SECCIONES: Record<string, string> = {
-  notario: 'Datos del Notario',
-  fecha_otorgamiento: 'Fecha de Otorgamiento',
-  vendedor: 'Datos del Vendedor (Parte Enajenante)',
-  comprador: 'Datos del Comprador (Parte Adquirente)',
-  representante_legal: 'Representante Legal',
-  sociedad: 'Datos de la Sociedad',
-  inmueble: 'Datos del Inmueble',
-  linderos: 'Linderos y Medidas',
-  antecedentes_registrales: 'Antecedentes Registrales',
-  constitucion_sociedad: 'Datos de Constitución de Sociedad',
-  permisos: 'Permisos y Autorizaciones',
-  operacion: 'Datos de la Operación',
-  avaluo: 'Avalúo Fiscal'
-};
-
-// Obtener campos requeridos faltantes
 export function getCamposFaltantes(
-  tipoCasoId: string,
-  datosActuales: Record<string, string>
-): CampoFormulario[] {
-  const tipoCaso = getTipoCasoById(tipoCasoId);
-  if (!tipoCaso) return [];
-
-  return tipoCaso.camposRequeridos.filter(
-    (campo) => campo.requerido && !datosActuales[campo.id]
-  );
+  campos: CampoFormulario[],
+  valores: Record<string, string>
+): string[] {
+  return campos.filter((c) => c.requerido && !valores[c.id]).map((c) => c.id);
 }
 
-// Calcular porcentaje de completitud
 export function calcularCompletitud(
-  tipoCasoId: string,
-  datosActuales: Record<string, string>
+  campos: CampoFormulario[],
+  valores: Record<string, string>
 ): number {
-  const tipoCaso = getTipoCasoById(tipoCasoId);
-  if (!tipoCaso) return 0;
-
-  const camposRequeridos = tipoCaso.camposRequeridos.filter((c) => c.requerido);
-  const camposCompletados = camposRequeridos.filter(
-    (campo) => datosActuales[campo.id] && datosActuales[campo.id].trim() !== ''
-  );
-
-  return Math.round((camposCompletados.length / camposRequeridos.length) * 100);
+  const camposRequeridos = campos.filter((c) => c.requerido);
+  if (camposRequeridos.length === 0) return 100;
+  const completados = camposRequeridos.filter((c) =>
+    valores[c.id]?.trim()
+  ).length;
+  return Math.round((completados / camposRequeridos.length) * 100);
 }

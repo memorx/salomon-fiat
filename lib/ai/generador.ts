@@ -4,12 +4,6 @@ import { getClaudeClient } from './providers/claude';
 import { getOpenAIClient } from './providers/openai';
 import { getGeminiClient } from './providers/gemini';
 import { getTipoCasoById, NOMBRES_SECCIONES } from '@/lib/config/tipos-caso';
-import {
-  obtenerPlantilla,
-  procesarPlantilla,
-  validarDatosPlantilla,
-  formatearPrecioLegal
-} from '@/lib/templates';
 
 // ============================================================================
 // TIPOS
@@ -18,7 +12,7 @@ import {
 interface GenerarDocumentoParams {
   tipoCaso: string;
   datos: Record<string, any>;
-  plantillaPersonalizada?: string;
+  plantillaId?: string;
   modelo: 'claude' | 'gpt4' | 'gemini';
   usarPlantillaBase?: boolean;
 }
@@ -26,14 +20,161 @@ interface GenerarDocumentoParams {
 interface ResultadoGeneracion {
   exito: boolean;
   contenido?: string;
-  contenidoMarkdown?: string;
   tiempoProcesamiento: number;
   error?: string;
-  advertencias?: string[];
+  camposFaltantes?: string[];
 }
 
 // ============================================================================
-// FUNCIÓN PRINCIPAL DE GENERACIÓN
+// PLANTILLA BASE - COMPRAVENTA INMUEBLE (Michoacán)
+// ============================================================================
+
+const PLANTILLA_COMPRAVENTA = `# ESCRITURA PÚBLICA NÚMERO {{numero_escritura}}
+
+## COMPRAVENTA DE {{inmueble_tipo | uppercase}}
+
+En la ciudad de {{notario_ciudad}}, {{notario_estado}}, siendo las {{fecha_hora}} horas del día {{fecha_dia}} de {{fecha_mes}} del año {{fecha_ano}}, ante mí, **{{notario_nombre}}**, Notario Público Número **{{notario_numero}}** del Estado de {{notario_estado}}, con residencia en esta ciudad, comparecen:
+
+---
+
+## COMPARECIENTES
+
+### PARTE VENDEDORA:
+
+**{{vendedor_nombre}}**, de nacionalidad {{vendedor_nacionalidad}}, {{vendedor_estado_civil}}, {{vendedor_ocupacion}}, originario de {{vendedor_lugar_origen}}, con domicilio en {{vendedor_domicilio}}{{#if vendedor_colonia}}, Colonia {{vendedor_colonia}}{{/if}}{{#if vendedor_cp}}, C.P. {{vendedor_cp}}{{/if}}, quien se identifica con credencial para votar expedida por el Instituto Nacional Electoral, con clave de elector {{vendedor_ine}}, con CURP {{vendedor_curp}} y RFC {{vendedor_rfc}}.
+
+{{#if vendedor_conyuge_nombre}}
+Comparece junto con su cónyuge **{{vendedor_conyuge_nombre}}**, originario de {{vendedor_conyuge_lugar_origen}}.
+{{/if}}
+
+### PARTE COMPRADORA:
+
+**{{comprador_nombre}}**, de nacionalidad {{comprador_nacionalidad}}, {{comprador_estado_civil}}, {{comprador_ocupacion}}, originario de {{comprador_lugar_origen}}, con domicilio en {{comprador_domicilio}}{{#if comprador_colonia}}, Colonia {{comprador_colonia}}{{/if}}{{#if comprador_cp}}, C.P. {{comprador_cp}}{{/if}}, quien se identifica con credencial para votar expedida por el Instituto Nacional Electoral, con clave de elector {{comprador_ine}}, con CURP {{comprador_curp}} y RFC {{comprador_rfc}}.
+
+{{#if comprador2_nombre}}
+Comparece también **{{comprador2_nombre}}**, con CURP {{comprador2_curp}}, para adquirir en partes iguales proindiviso.
+{{/if}}
+
+---
+
+## ANTECEDENTE REGISTRAL
+
+El inmueble objeto de esta escritura se encuentra inscrito en el Registro Público de la Propiedad del Distrito de **{{registro_distrito}}**, bajo el número de inscripción **{{registro_numero}}**{{#if registro_tomo}}, Tomo {{registro_tomo}}{{/if}}{{#if registro_libro}}, Libro {{registro_libro}}{{/if}}{{#if registro_seccion}}, Sección {{registro_seccion}}{{/if}}, de fecha {{registro_fecha}}, derivado de la Escritura Pública número **{{antecedente_escritura_numero}}**, de fecha {{antecedente_escritura_fecha}}, pasada ante la fe del **{{antecedente_notario_nombre}}**, Notario Público número **{{antecedente_notario_numero}}** del Estado de {{notario_estado}}.
+
+---
+
+## DECLARACIONES
+
+**I.** Declara la parte vendedora que es legítima propietaria del inmueble objeto de este contrato, el cual se encuentra libre de todo gravamen, limitación de dominio, adeudo fiscal, afectación agraria, o cualquier otro derecho de terceros que pudiera afectar la propiedad.
+
+**II.** Declara la parte vendedora que es su voluntad enajenar el inmueble descrito en favor de la parte compradora.
+
+**III.** Declara la parte compradora que es su voluntad adquirir el inmueble en los términos y condiciones establecidos en este instrumento.
+
+**IV.** Declaran ambas partes que el inmueble se encuentra al corriente en el pago del Impuesto Predial, según consta en el recibo de pago con cuenta predial número **{{inmueble_cuenta_predial}}**.
+
+**V.** Declaran las partes que el inmueble tiene asignada la clave catastral número **{{inmueble_clave_catastral}}**{{#if inmueble_valor_catastral}}, con valor catastral de ${{
+  inmueble_valor_catastral
+}} ({{inmueble_valor_catastral_letra}} PESOS 00/100 M.N.){{/if}}.
+
+{{#if avaluo_numero}}
+**VI.** El avalúo del inmueble fue practicado por el perito valuador **{{avaluo_perito}}**, con número de avalúo {{avaluo_numero}}, de fecha {{avaluo_fecha}}, arrojando un valor comercial de ${{
+  avaluo_valor
+}} ({{avaluo_valor_letra}} PESOS 00/100 M.N.).
+{{/if}}
+
+---
+
+## CLÁUSULAS
+
+**PRIMERA.- OBJETO DEL CONTRATO.** La parte vendedora vende, cede y transfiere en pleno dominio a la parte compradora, y ésta adquiere, el inmueble descrito en este instrumento.
+
+**SEGUNDA.- PRECIO.** El precio pactado por la compraventa es la cantidad de **${{
+  operacion_precio
+}}** (**{{operacion_precio_letra}} PESOS 00/100 MONEDA NACIONAL**), que la parte compradora paga a la parte vendedora en este acto mediante {{operacion_forma_pago}}, por lo que la parte vendedora otorga el más amplio recibo que en derecho proceda.
+
+**TERCERA.- UBICACIÓN DEL INMUEBLE.** El inmueble objeto de este contrato se encuentra ubicado en:
+
+**{{inmueble_calle}} Número {{inmueble_numero_casa}}**{{#if inmueble_fraccionamiento}}, Fraccionamiento {{inmueble_fraccionamiento}}{{/if}}, Colonia **{{inmueble_colonia}}**{{#if inmueble_colonia_anterior}} (antes {{inmueble_colonia_anterior}}){{/if}}, C.P. {{inmueble_cp}}, en el Municipio de **{{inmueble_municipio}}**, Distrito de **{{inmueble_distrito}}**, Estado de **{{inmueble_estado}}**.
+
+**CUARTA.- SUPERFICIE Y MEDIDAS.** El inmueble tiene una superficie de terreno de **{{inmueble_superficie}} metros cuadrados**{{#if inmueble_superficie_construccion}}, con una superficie de construcción de **{{inmueble_superficie_construccion}} metros cuadrados**{{/if}}, y cuenta con las siguientes medidas y colindancias:
+
+- **AL NORTE:** {{lindero_norte}}
+- **AL SUR:** {{lindero_sur}}
+- **AL ORIENTE:** {{lindero_oriente}}
+- **AL PONIENTE:** {{lindero_poniente}}
+{{#if lindero_nororiente}}
+- **AL NORORIENTE:** {{lindero_nororiente}}
+{{/if}}
+{{#if lindero_surponiente}}
+- **AL SURPONIENTE:** {{lindero_surponiente}}
+{{/if}}
+
+**QUINTA.- TRADICIÓN.** La parte vendedora hace entrega real y material de la posesión del inmueble a la parte compradora en este mismo acto, quien la recibe a su entera satisfacción.
+
+**SEXTA.- SANEAMIENTO PARA EL CASO DE EVICCIÓN.** La parte vendedora se obliga al saneamiento para el caso de evicción, en los términos del Código Civil vigente en el Estado.
+
+**SÉPTIMA.- GASTOS Y DERECHOS.** Los gastos, derechos e impuestos que genere la presente escritura serán por cuenta de la parte compradora.
+
+**OCTAVA.- JURISDICCIÓN.** Para todo lo relacionado con la interpretación y cumplimiento de este contrato, las partes se someten a la jurisdicción de los tribunales competentes del Distrito Judicial de {{inmueble_distrito}}, {{inmueble_estado}}, renunciando al fuero que por razón de su domicilio presente o futuro pudiera corresponderles.
+
+---
+
+## GENERALES
+
+Para constancia, los comparecientes manifiestan sus datos generales de identificación:
+
+**VENDEDOR:**
+- Nombre: {{vendedor_nombre}}
+- CURP: {{vendedor_curp}}
+- RFC: {{vendedor_rfc}}
+- INE: {{vendedor_ine}}
+
+**COMPRADOR:**
+- Nombre: {{comprador_nombre}}
+- CURP: {{comprador_curp}}
+- RFC: {{comprador_rfc}}
+- INE: {{comprador_ine}}
+
+---
+
+## CERTIFICACIÓN NOTARIAL
+
+YO, EL NOTARIO, **CERTIFICO:**
+
+**PRIMERO.-** Que tengo a la vista los documentos que acreditan la legítima propiedad del inmueble, así como la personalidad de los comparecientes.
+
+**SEGUNDO.-** Que me cercioré de la identidad de los comparecientes mediante la exhibición de sus credenciales para votar vigentes.
+
+**TERCERO.-** Que a mi juicio, los comparecientes tienen capacidad legal para celebrar este acto jurídico.
+
+**CUARTO.-** Que leí en voz alta este instrumento a los comparecientes, explicándoles el valor y consecuencias legales de su contenido, y manifestando su conformidad, lo ratifican y firman al margen y al calce.
+
+**QUINTO.-** Que esta escritura se asienta en el Volumen del Protocolo a mi cargo, correspondiente al presente año.
+
+---
+
+**DOY FE.**
+
+---
+
+{{notario_nombre}}
+NOTARIO PÚBLICO NÚMERO {{notario_numero}}
+{{notario_ciudad}}, {{notario_estado}}
+
+---
+
+_____________________________
+**{{vendedor_nombre}}**
+PARTE VENDEDORA
+
+_____________________________
+**{{comprador_nombre}}**
+PARTE COMPRADORA
+`;
+
+// ============================================================================
+// FUNCIÓN PRINCIPAL
 // ============================================================================
 
 export async function generarDocumentoConIA(
@@ -42,105 +183,61 @@ export async function generarDocumentoConIA(
   const inicio = Date.now();
 
   try {
-    const {
-      tipoCaso,
-      datos,
-      plantillaPersonalizada,
-      modelo,
-      usarPlantillaBase = true
-    } = params;
+    const { tipoCaso, datos, modelo, usarPlantillaBase = true } = params;
 
-    // Aplanar datos si vienen anidados
-    const datosAplanados = aplanarDatos(datos);
+    console.log(`Generando documento para: ${tipoCaso}`);
+    console.log(`Datos recibidos: ${Object.keys(datos).length} campos`);
 
-    // Si hay plantilla base, usarla primero
-    if (usarPlantillaBase) {
-      const plantilla =
-        plantillaPersonalizada || (await obtenerPlantilla(tipoCaso));
+    // Obtener plantilla según tipo de caso
+    let plantilla = '';
+    if (usarPlantillaBase && tipoCaso === 'compraventa_inmueble') {
+      plantilla = PLANTILLA_COMPRAVENTA;
+    }
 
-      if (plantilla) {
-        // Validar datos
-        const validacion = validarDatosPlantilla(datosAplanados);
+    // Si hay plantilla, procesarla
+    if (plantilla) {
+      const contenidoProcesado = procesarPlantilla(plantilla, datos);
 
-        if (!validacion.valido) {
-          // Si faltan datos críticos, intentar generar con IA
-          console.log(
-            'Faltan campos, usando IA para completar:',
-            validacion.faltantes
-          );
-        }
+      // Verificar si quedaron variables sin procesar
+      const variablesFaltantes =
+        contenidoProcesado.match(/\{\{[\w_|]+\}\}/g) || [];
 
-        // Procesar precio si existe
-        if (
-          datosAplanados.operacion_precio &&
-          !datosAplanados.operacion_precio_letra
-        ) {
-          const precioNumero = parseFloat(
-            datosAplanados.operacion_precio.replace(/[^0-9.]/g, '')
-          );
-          if (!isNaN(precioNumero)) {
-            datosAplanados.operacion_precio_letra =
-              formatearPrecioLegal(precioNumero);
-          }
-        }
-
-        // Procesar plantilla con los datos
-        const contenidoBase = procesarPlantilla(plantilla, datosAplanados);
-
-        // Mejorar con IA si hay secciones incompletas
-        const contenidoFinal = await mejorarConIA(
-          contenidoBase,
-          datosAplanados,
+      if (variablesFaltantes.length > 5) {
+        // Demasiados campos faltantes, usar IA para completar
+        const contenidoMejorado = await mejorarConIA(
+          contenidoProcesado,
           tipoCaso,
           modelo
         );
 
         return {
           exito: true,
-          contenido: contenidoFinal,
-          contenidoMarkdown: contenidoFinal,
+          contenido: contenidoMejorado,
           tiempoProcesamiento: Date.now() - inicio,
-          advertencias: validacion.valido
-            ? []
-            : [`Campos faltantes: ${validacion.faltantes.join(', ')}`]
+          camposFaltantes: variablesFaltantes.map((v) =>
+            v.replace(/\{\{|\}\}/g, '')
+          )
         };
       }
-    }
 
-    // Si no hay plantilla, generar completamente con IA
-    const prompt = generarPromptDocumento(tipoCaso, datosAplanados);
-
-    let contenido: string;
-    switch (modelo) {
-      case 'claude':
-        contenido = await generarConClaude(prompt);
-        break;
-      case 'gpt4':
-        contenido = await generarConGPT4(prompt);
-        break;
-      case 'gemini':
-        contenido = await generarConGemini(prompt);
-        break;
-      default:
-        contenido = await generarConClaude(prompt);
-    }
-
-    if (!contenido || contenido.trim().length < 100) {
       return {
-        exito: false,
-        error: 'El documento generado está vacío o es muy corto',
+        exito: true,
+        contenido: contenidoProcesado,
         tiempoProcesamiento: Date.now() - inicio
       };
     }
 
+    // Sin plantilla, generar con IA desde cero
+    const prompt = generarPromptDocumento(tipoCaso, datos);
+    const contenido = await generarConModelo(prompt, modelo);
+
     return {
       exito: true,
       contenido,
-      contenidoMarkdown: contenido,
       tiempoProcesamiento: Date.now() - inicio
     };
   } catch (error) {
-    console.error('Error en generación de documento:', error);
+    console.error('Error en generación:', error);
     return {
       exito: false,
       error: error instanceof Error ? error.message : 'Error desconocido',
@@ -150,91 +247,86 @@ export async function generarDocumentoConIA(
 }
 
 // ============================================================================
-// FUNCIONES AUXILIARES
+// PROCESAMIENTO DE PLANTILLA
 // ============================================================================
 
-function aplanarDatos(datos: Record<string, any>): Record<string, string> {
-  const resultado: Record<string, string> = {};
+function procesarPlantilla(
+  plantilla: string,
+  datos: Record<string, any>
+): string {
+  let resultado = plantilla;
 
-  for (const [clave, valor] of Object.entries(datos)) {
-    if (typeof valor === 'object' && valor !== null) {
-      if ('valor' in valor) {
-        // Es un DatoExtraido
-        resultado[clave] = valor.valor || '';
-      } else {
-        // Es un objeto anidado
-        const subDatos = aplanarDatos(valor);
-        for (const [subClave, subValor] of Object.entries(subDatos)) {
-          resultado[subClave] = subValor;
-        }
+  // Procesar condicionales {{#if variable}}...{{/if}}
+  const condicionalRegex = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g;
+  resultado = resultado.replace(
+    condicionalRegex,
+    (match, variable, contenido) => {
+      const valor = datos[variable];
+      if (valor && String(valor).trim()) {
+        // Procesar el contenido interno también
+        return procesarPlantilla(contenido, datos);
       }
-    } else {
-      resultado[clave] = String(valor || '');
+      return '';
     }
-  }
+  );
+
+  // Procesar variables con modificadores {{variable | modifier}}
+  const variableModRegex = /\{\{(\w+)\s*\|\s*(\w+)\}\}/g;
+  resultado = resultado.replace(
+    variableModRegex,
+    (match, variable, modifier) => {
+      const valor = datos[variable];
+      if (!valor) return match; // Dejar la variable si no hay valor
+
+      switch (modifier.toLowerCase()) {
+        case 'uppercase':
+          return String(valor).toUpperCase();
+        case 'lowercase':
+          return String(valor).toLowerCase();
+        case 'capitalize':
+          return (
+            String(valor).charAt(0).toUpperCase() +
+            String(valor).slice(1).toLowerCase()
+          );
+        default:
+          return String(valor);
+      }
+    }
+  );
+
+  // Procesar variables simples {{variable}}
+  const variableRegex = /\{\{(\w+)\}\}/g;
+  resultado = resultado.replace(variableRegex, (match, variable) => {
+    const valor = datos[variable];
+    if (valor !== undefined && valor !== null && String(valor).trim()) {
+      return String(valor);
+    }
+    return match; // Dejar la variable si no hay valor
+  });
+
+  // Limpiar líneas vacías excesivas
+  resultado = resultado.replace(/\n{3,}/g, '\n\n');
 
   return resultado;
 }
 
-async function mejorarConIA(
-  contenidoBase: string,
-  datos: Record<string, string>,
-  tipoCaso: string,
-  modelo: 'claude' | 'gpt4' | 'gemini'
-): Promise<string> {
-  // Verificar si hay secciones incompletas (marcadas con {{variable}})
-  const variablesSinProcesar = contenidoBase.match(/\{\{[^}]+\}\}/g);
-
-  if (!variablesSinProcesar || variablesSinProcesar.length === 0) {
-    return contenidoBase;
-  }
-
-  // Construir prompt para completar
-  const prompt = `Eres un experto en documentos legales notariales mexicanos.
-
-Se te proporciona un documento parcialmente completado. Tu tarea es:
-1. Completar las secciones que tienen marcadores {{variable}} con texto apropiado
-2. Si no hay suficiente información para completar un campo, usar "[PENDIENTE: descripción]"
-3. Mantener el formato y estructura del documento
-4. Asegurar que el lenguaje sea formal y jurídico
-
-DOCUMENTO A COMPLETAR:
-${contenidoBase}
-
-DATOS DISPONIBLES:
-${JSON.stringify(datos, null, 2)}
-
-Devuelve el documento completo con todas las variables procesadas.`;
-
-  let contenidoMejorado: string;
-
-  switch (modelo) {
-    case 'claude':
-      contenidoMejorado = await generarConClaude(prompt);
-      break;
-    case 'gpt4':
-      contenidoMejorado = await generarConGPT4(prompt);
-      break;
-    case 'gemini':
-      contenidoMejorado = await generarConGemini(prompt);
-      break;
-    default:
-      contenidoMejorado = await generarConClaude(prompt);
-  }
-
-  return contenidoMejorado || contenidoBase;
-}
+// ============================================================================
+// GENERACIÓN CON IA
+// ============================================================================
 
 function generarPromptDocumento(
   tipoCaso: string,
-  datos: Record<string, string>
+  datos: Record<string, any>
 ): string {
   const tipoCasoInfo = getTipoCasoById(tipoCaso);
   const nombreTipo = tipoCasoInfo?.nombre || tipoCaso;
 
-  const datosFormateados = formatearDatosParaPrompt(datos);
+  const datosFormateados = Object.entries(datos)
+    .filter(([_, v]) => v && String(v).trim())
+    .map(([k, v]) => `- ${k}: ${v}`)
+    .join('\n');
 
-  return `Eres un experto redactor de documentos legales notariales en México.
+  return `Eres un experto redactor de documentos legales notariales en México, específicamente del Estado de Michoacán.
 
 Tu tarea es generar un documento legal de tipo: "${nombreTipo}"
 
@@ -242,94 +334,76 @@ DATOS PROPORCIONADOS:
 ${datosFormateados}
 
 INSTRUCCIONES:
-1. Genera un documento legal completo y profesional.
+1. Genera un documento legal completo y profesional en formato Markdown.
 2. Usa lenguaje jurídico formal apropiado para documentos notariales mexicanos.
 3. Incluye todas las cláusulas estándar para este tipo de documento.
 4. Asegúrate de que el documento cumpla con los requisitos legales mexicanos.
 5. Usa los datos proporcionados en los lugares apropiados.
 6. Si faltan datos críticos, indica [PENDIENTE: descripción] donde corresponda.
+7. Incluye espacios para firmas al final.
 
-FORMATO DE SALIDA:
-- Genera el documento en formato Markdown.
-- Usa encabezados para las secciones principales.
-- Incluye espacios para firmas al final.
-- El documento debe estar listo para impresión.`;
+El documento debe estar listo para impresión.`;
 }
 
-function formatearDatosParaPrompt(datos: Record<string, string>): string {
-  const lineas: string[] = [];
+async function generarConModelo(
+  prompt: string,
+  modelo: 'claude' | 'gpt4' | 'gemini'
+): Promise<string> {
+  switch (modelo) {
+    case 'claude':
+      const claude = getClaudeClient();
+      const respClaude = await claude.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8192,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      const textClaude = respClaude.content.find((c) => c.type === 'text');
+      return textClaude?.text || '';
 
-  // Agrupar por prefijo
-  const grupos: Record<string, Record<string, string>> = {};
+    case 'gpt4':
+      const openai = getOpenAIClient();
+      const respGPT = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        max_tokens: 8192,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      return respGPT.choices[0]?.message?.content || '';
 
-  for (const [clave, valor] of Object.entries(datos)) {
-    if (!valor) continue;
+    case 'gemini':
+      const gemini = getGeminiClient();
+      const model = gemini.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
 
-    const partes = clave.split('_');
-    const grupo = partes[0];
-
-    if (!grupos[grupo]) {
-      grupos[grupo] = {};
-    }
-    grupos[grupo][clave] = valor;
+    default:
+      throw new Error(`Modelo no soportado: ${modelo}`);
   }
+}
 
-  for (const [grupo, campos] of Object.entries(grupos)) {
-    const nombreGrupo = NOMBRES_SECCIONES[grupo] || grupo;
-    lineas.push(`\n### ${nombreGrupo}`);
+async function mejorarConIA(
+  documento: string,
+  tipoCaso: string,
+  modelo: 'claude' | 'gpt4' | 'gemini'
+): Promise<string> {
+  const prompt = `Eres un experto en documentos legales notariales de México.
 
-    for (const [campo, valor] of Object.entries(campos)) {
-      const nombreCampo = campo
-        .replace(/_/g, ' ')
-        .replace(/^\w/, (c) => c.toUpperCase());
-      lineas.push(`- ${nombreCampo}: ${valor}`);
-    }
-  }
+El siguiente documento tiene algunos campos marcados con {{variable}} que no pudieron ser completados automáticamente.
 
-  return lineas.join('\n');
+DOCUMENTO:
+${documento}
+
+INSTRUCCIONES:
+1. Reemplaza las variables {{variable}} con texto apropiado que indique que la información está pendiente, como "[PENDIENTE: nombre del campo]".
+2. NO inventes datos. Solo indica que están pendientes.
+3. Mantén el formato y estructura del documento.
+4. Devuelve el documento completo corregido.`;
+
+  return generarConModelo(prompt, modelo);
 }
 
 // ============================================================================
-// LLAMADAS A MODELOS DE IA
-// ============================================================================
-
-async function generarConClaude(prompt: string): Promise<string> {
-  const client = getClaudeClient();
-
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8192,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  const textContent = response.content.find((c) => c.type === 'text');
-  return textContent?.text || '';
-}
-
-async function generarConGPT4(prompt: string): Promise<string> {
-  const client = getOpenAIClient();
-
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o',
-    max_tokens: 8192,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  return response.choices[0]?.message?.content || '';
-}
-
-async function generarConGemini(prompt: string): Promise<string> {
-  const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-
-  return response.text();
-}
-
-// ============================================================================
-// MODIFICAR DOCUMENTO EXISTENTE (CHAT)
+// MODIFICACIÓN CON CHAT
 // ============================================================================
 
 export async function modificarDocumentoConChat(
@@ -349,26 +423,12 @@ INSTRUCCIÓN DEL USUARIO:
 ${instruccion}
 
 TAREA:
-Modifica el documento según la instrucción del usuario. 
+Modifica el documento según la instrucción del usuario.
 Mantén el formato y estructura general.
 Devuelve el documento completo con las modificaciones aplicadas.
 Si la instrucción no es clara o podría afectar la validez legal, indica las preocupaciones.`;
 
-    let contenido: string;
-
-    switch (modelo) {
-      case 'claude':
-        contenido = await generarConClaude(prompt);
-        break;
-      case 'gpt4':
-        contenido = await generarConGPT4(prompt);
-        break;
-      case 'gemini':
-        contenido = await generarConGemini(prompt);
-        break;
-      default:
-        contenido = await generarConClaude(prompt);
-    }
+    const contenido = await generarConModelo(prompt, modelo);
 
     return {
       exito: true,
@@ -383,4 +443,113 @@ Si la instrucción no es clara o podría afectar la validez legal, indica las pr
       tiempoProcesamiento: Date.now() - inicio
     };
   }
+}
+
+// ============================================================================
+// HELPERS DE FORMATO
+// ============================================================================
+
+export function numeroATexto(numero: number): string {
+  const unidades = [
+    '',
+    'UN',
+    'DOS',
+    'TRES',
+    'CUATRO',
+    'CINCO',
+    'SEIS',
+    'SIETE',
+    'OCHO',
+    'NUEVE'
+  ];
+  const especiales = [
+    'DIEZ',
+    'ONCE',
+    'DOCE',
+    'TRECE',
+    'CATORCE',
+    'QUINCE',
+    'DIECISÉIS',
+    'DIECISIETE',
+    'DIECIOCHO',
+    'DIECINUEVE'
+  ];
+  const decenas = [
+    '',
+    '',
+    'VEINTE',
+    'TREINTA',
+    'CUARENTA',
+    'CINCUENTA',
+    'SESENTA',
+    'SETENTA',
+    'OCHENTA',
+    'NOVENTA'
+  ];
+  const centenas = [
+    '',
+    'CIENTO',
+    'DOSCIENTOS',
+    'TRESCIENTOS',
+    'CUATROCIENTOS',
+    'QUINIENTOS',
+    'SEISCIENTOS',
+    'SETECIENTOS',
+    'OCHOCIENTOS',
+    'NOVECIENTOS'
+  ];
+
+  if (numero === 0) return 'CERO';
+  if (numero === 100) return 'CIEN';
+  if (numero === 1000) return 'MIL';
+  if (numero === 1000000) return 'UN MILLÓN';
+
+  let resultado = '';
+
+  // Millones
+  if (numero >= 1000000) {
+    const millones = Math.floor(numero / 1000000);
+    if (millones === 1) {
+      resultado += 'UN MILLÓN ';
+    } else {
+      resultado += numeroATexto(millones) + ' MILLONES ';
+    }
+    numero %= 1000000;
+  }
+
+  // Miles
+  if (numero >= 1000) {
+    const miles = Math.floor(numero / 1000);
+    if (miles === 1) {
+      resultado += 'MIL ';
+    } else {
+      resultado += numeroATexto(miles) + ' MIL ';
+    }
+    numero %= 1000;
+  }
+
+  // Centenas
+  if (numero >= 100) {
+    resultado += centenas[Math.floor(numero / 100)] + ' ';
+    numero %= 100;
+  }
+
+  // Decenas y unidades
+  if (numero >= 20) {
+    resultado += decenas[Math.floor(numero / 10)];
+    if (numero % 10 !== 0) {
+      resultado += ' Y ' + unidades[numero % 10];
+    }
+  } else if (numero >= 10) {
+    resultado += especiales[numero - 10];
+  } else if (numero > 0) {
+    resultado += unidades[numero];
+  }
+
+  return resultado.trim();
+}
+
+export function formatearPrecioLegal(monto: number): string {
+  const texto = numeroATexto(monto);
+  return `${texto} PESOS 00/100 MONEDA NACIONAL`;
 }
