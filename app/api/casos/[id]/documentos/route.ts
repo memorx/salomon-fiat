@@ -1,71 +1,168 @@
-// app/api/casos/route.ts
+// app/api/casos/[id]/documentos/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { supabaseAdmin } from '@/lib/storage/supabase';
 
-// GET /api/casos - Listar todos los casos del usuario
-export async function GET(request: NextRequest) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+// GET /api/casos/[id]/documentos - Listar documentos de un caso
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
+    const { id: casoId } = await params;
 
-    const casos = await prisma.caso.findMany({
-      where: { userId },
-      include: {
-        documentos: {
-          select: {
-            id: true,
-            tipo: true,
-            status: true
-          }
-        }
-      },
+    const documentos = await prisma.documento.findMany({
+      where: { casoId },
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json({ casos });
+    return NextResponse.json({ documentos });
   } catch (error) {
-    console.error('Error al obtener casos:', error);
+    console.error('Error al obtener documentos:', error);
     return NextResponse.json(
-      { error: 'Error al obtener los casos' },
+      { error: 'Error al obtener los documentos' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/casos - Crear un nuevo caso
-export async function POST(request: NextRequest) {
+// POST /api/casos/[id]/documentos - Subir documentos
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const body = await request.json();
-    const { tipoCaso, aiModel = 'claude' } = body;
+    const { id: casoId } = await params;
+    console.log('📁 Iniciando subida de documentos para caso:', casoId);
 
-    // Validar tipo de caso
-    if (!tipoCaso) {
+    // Verificar que el caso existe
+    const caso = await prisma.caso.findUnique({
+      where: { id: casoId }
+    });
+
+    if (!caso) {
       return NextResponse.json(
-        { error: 'El tipo de caso es requerido' },
+        { error: 'Caso no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    // Obtener FormData
+    const formData = await request.formData();
+    const archivos = formData.getAll('archivos') as File[];
+    const tiposJson = formData.get('tipos') as string;
+
+    console.log('📦 Archivos recibidos:', archivos.length);
+    console.log('📦 Tipos JSON:', tiposJson);
+
+    const tipos = JSON.parse(tiposJson || '[]');
+
+    if (archivos.length === 0) {
+      console.log('❌ No se recibieron archivos');
+      return NextResponse.json(
+        { error: 'No se recibieron archivos' },
         { status: 400 }
       );
     }
 
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
+    const documentosCreados = [];
+    const errores = [];
 
-    // Crear el caso en la base de datos
-    const caso = await prisma.caso.create({
-      data: {
-        userId,
-        documentType: tipoCaso,
-        aiModel,
-        status: 'TRANSCRIBIENDO', // Estado inicial (cambiaremos el nombre después)
-        extractedData: {}
+    // Procesar cada archivo
+    for (let i = 0; i < archivos.length; i++) {
+      const archivo = archivos[i];
+      const tipo = tipos[i] || 'otro';
+
+      console.log(
+        `📄 Procesando archivo ${i + 1}:`,
+        archivo.name,
+        'Tamaño:',
+        archivo.size,
+        'Tipo:',
+        archivo.type
+      );
+
+      // Generar nombre único
+      const extension = archivo.name.split('.').pop();
+      const nombreArchivo = `${casoId}/${Date.now()}-${i}.${extension}`;
+
+      console.log('📝 Nombre en storage:', nombreArchivo);
+
+      // Convertir a buffer
+      const arrayBuffer = await archivo.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      console.log('💾 Buffer creado, tamaño:', buffer.length);
+
+      // Subir a Supabase Storage
+      const { data: uploadData, error: uploadError } =
+        await supabaseAdmin.storage
+          .from('documentos')
+          .upload(nombreArchivo, buffer, {
+            contentType: archivo.type,
+            upsert: false
+          });
+
+      if (uploadError) {
+        console.error('❌ Error al subir archivo a Supabase:', uploadError);
+        errores.push({ archivo: archivo.name, error: uploadError.message });
+        continue;
       }
+
+      console.log('✅ Archivo subido exitosamente:', uploadData);
+
+      // Obtener URL pública
+      const { data: urlData } = supabaseAdmin.storage
+        .from('documentos')
+        .getPublicUrl(nombreArchivo);
+
+      console.log('🔗 URL pública:', urlData.publicUrl);
+
+      // Crear registro en BD
+      const documento = await prisma.documento.create({
+        data: {
+          casoId,
+          tipo,
+          contenido: urlData.publicUrl,
+          status: 'BORRADOR',
+          version: 1
+        }
+      });
+
+      console.log('💾 Documento creado en BD:', documento.id);
+
+      documentosCreados.push(documento);
+    }
+
+    if (documentosCreados.length === 0) {
+      console.error('❌ No se pudo subir ningún archivo. Errores:', errores);
+      return NextResponse.json(
+        { error: 'No se pudo subir ningún archivo', detalles: errores },
+        { status: 500 }
+      );
+    }
+
+    // Actualizar estado del caso
+    const casoActualizado = await prisma.caso.update({
+      where: { id: casoId },
+      data: { status: 'CLASIFICANDO' }
     });
 
-    return NextResponse.json({ caso }, { status: 201 });
-  } catch (error) {
-    console.error('Error al crear caso:', error);
+    console.log(
+      '✅ Proceso completado. Documentos creados:',
+      documentosCreados.length
+    );
+
     return NextResponse.json(
-      { error: 'Error al crear el caso' },
+      {
+        documentos: documentosCreados,
+        caso: casoActualizado
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('💥 Error general al subir documentos:', error);
+    return NextResponse.json(
+      { error: 'Error al subir los documentos', detalle: String(error) },
       { status: 500 }
     );
   }

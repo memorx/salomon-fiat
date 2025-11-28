@@ -3,7 +3,7 @@
 import { getClaudeClient } from './providers/claude';
 import { getOpenAIClient } from './providers/openai';
 import { getGeminiClient } from './providers/gemini';
-import { TIPOS_CASO, getTipoCasoById } from '@/lib/config/tipos-caso';
+import { getTipoCasoById } from '@/lib/config/tipos-caso';
 
 interface DocumentoParaProcesar {
   id: string;
@@ -111,16 +111,16 @@ export async function extraerDatosConIA(
 
     switch (modelo) {
       case 'claude':
-        respuesta = await llamarClaude(mensajeCompleto, documentos);
+        respuesta = await llamarClaude(mensajeCompleto);
         break;
       case 'gpt4':
-        respuesta = await llamarGPT4(mensajeCompleto, documentos);
+        respuesta = await llamarGPT4(mensajeCompleto);
         break;
       case 'gemini':
-        respuesta = await llamarGemini(mensajeCompleto, documentos);
+        respuesta = await llamarGemini(mensajeCompleto);
         break;
       default:
-        respuesta = await llamarClaude(mensajeCompleto, documentos);
+        respuesta = await llamarClaude(mensajeCompleto);
     }
 
     // Parsear respuesta JSON
@@ -144,14 +144,8 @@ export async function extraerDatosConIA(
 }
 
 // Llamar a Claude
-async function llamarClaude(
-  prompt: string,
-  documentos: DocumentoParaProcesar[]
-): Promise<string> {
+async function llamarClaude(prompt: string): Promise<string> {
   const client = getClaudeClient();
-
-  // TODO: Implementar visión para analizar imágenes de documentos
-  // Por ahora, solo procesamos el texto del prompt
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -169,13 +163,8 @@ async function llamarClaude(
 }
 
 // Llamar a GPT-4
-async function llamarGPT4(
-  prompt: string,
-  documentos: DocumentoParaProcesar[]
-): Promise<string> {
+async function llamarGPT4(prompt: string): Promise<string> {
   const client = getOpenAIClient();
-
-  // TODO: Implementar visión para analizar imágenes de documentos
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
@@ -192,13 +181,8 @@ async function llamarGPT4(
 }
 
 // Llamar a Gemini
-async function llamarGemini(
-  prompt: string,
-  documentos: DocumentoParaProcesar[]
-): Promise<string> {
+async function llamarGemini(prompt: string): Promise<string> {
   const client = getGeminiClient();
-
-  // TODO: Implementar visión para analizar imágenes de documentos
 
   const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
   const result = await model.generateContent(prompt);
