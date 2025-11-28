@@ -1,6 +1,12 @@
-import Link from 'next/link';
+// components/layout/Navbar.tsx
 
-export default function Navbar() {
+import Link from 'next/link';
+import { auth } from '@/lib/auth';
+import { UserMenu } from './UserMenu';
+
+export default async function Navbar() {
+  const session = await auth();
+
   return (
     <nav className="border-b bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,38 +23,50 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Navigation Links - Desktop */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link
-              href="/dashboard"
-              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/casos"
-              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              Casos
-            </Link>
-            <Link
-              href="/plantillas"
-              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              Plantillas
-            </Link>
-          </div>
-
-          {/* User Menu Placeholder */}
-          <div className="flex items-center gap-4">
-            {/* TODO: Add user dropdown menu with NextAuth */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  U
-                </span>
-              </div>
+          {/* Navigation Links - Desktop (solo si está logueado) */}
+          {session?.user && (
+            <div className="hidden md:flex items-center gap-6">
+              <Link
+                href="/dashboard"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/casos"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Casos
+              </Link>
+              <Link
+                href="/plantillas"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Plantillas
+              </Link>
             </div>
+          )}
+
+          {/* User Menu / Auth Buttons */}
+          <div className="flex items-center gap-4">
+            {session?.user ? (
+              <UserMenu user={session.user} />
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/login"
+                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  Iniciar Sesión
+                </Link>
+                <Link
+                  href="/registro"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Registrarse
+                </Link>
+              </div>
+            )}
 
             {/* Mobile menu button */}
             <button className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">

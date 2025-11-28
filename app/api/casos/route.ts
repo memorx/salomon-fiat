@@ -1,16 +1,18 @@
-// app/api/casos/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { auth } from '@/lib/auth';
 
 // GET /api/casos - Listar todos los casos del usuario
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
 
     const casos = await prisma.caso.findMany({
-      where: { userId },
+      where: { userId: session.user.id },
       include: {
         documentos: {
           select: {
@@ -36,6 +38,12 @@ export async function GET(request: NextRequest) {
 // POST /api/casos - Crear un nuevo caso
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { tipoCaso, aiModel = 'claude' } = body;
 
@@ -47,16 +55,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
-
     // Crear el caso en la base de datos
     const caso = await prisma.caso.create({
       data: {
-        userId,
+        userId: session.user.id,
         documentType: tipoCaso,
         aiModel,
-        status: 'TRANSCRIBIENDO', // Estado inicial (cambiaremos el nombre después)
+        status: 'TRANSCRIBIENDO',
         extractedData: {}
       }
     });
