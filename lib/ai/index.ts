@@ -6,15 +6,19 @@ export {
   askClaude,
   analyzeImageWithClaude
 } from './providers/claude';
+
 export {
   getOpenAIClient,
   askGPT4,
-  analyzeImageWithGPT4
+  analyzeImageWithGPT4,
+  analyzeImageBase64WithGPT4
 } from './providers/openai';
+
 export {
   getGeminiClient,
   askGemini,
-  analyzeImageWithGemini
+  analyzeImageWithGemini,
+  analyzeMultipleImagesWithGemini
 } from './providers/gemini';
 
 // Funciones principales

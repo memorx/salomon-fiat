@@ -1,14 +1,22 @@
 // lib/ai/extractor.ts
 
-import { getClaudeClient } from './providers/claude';
-import { getOpenAIClient } from './providers/openai';
-import { getGeminiClient } from './providers/gemini';
+import { getClaudeClient, analyzeImageWithClaude } from './providers/claude';
+import {
+  getOpenAIClient,
+  analyzeImageBase64WithGPT4
+} from './providers/openai';
+import { analyzeImageWithGemini } from './providers/gemini';
 import { getTipoCasoById } from '@/lib/config/tipos-caso';
+
+// ============================================================================
+// TIPOS
+// ============================================================================
 
 interface DocumentoParaProcesar {
   id: string;
-  tipo: string;
-  url: string;
+  tipo: string; // ine_frente, ine_reverso, curp, escritura_propiedad, etc.
+  base64: string;
+  mimeType: string;
 }
 
 interface ExtraerDatosParams {
@@ -34,48 +42,223 @@ interface ResultadoExtraccion {
   error?: string;
 }
 
-// Prompt base para extracción de datos
-function generarPromptExtraccion(tipoCaso: string, campos: string[]): string {
-  const tipoCasoInfo = getTipoCasoById(tipoCaso);
-  const nombreTipo = tipoCasoInfo?.nombre || tipoCaso;
+// ============================================================================
+// MAPEO DE CAMPOS POR TIPO DE DOCUMENTO
+// Qué campos se pueden extraer de cada tipo de documento
+// ============================================================================
 
-  return `Eres un asistente especializado en análisis de documentos legales para notarías mexicanas.
+const CAMPOS_POR_DOCUMENTO: Record<string, string[]> = {
+  ine_frente: [
+    'nombre', // Se usa para vendedor o comprador según contexto
+    'domicilio',
+    'fecha_nacimiento',
+    'curp',
+    'clave_elector'
+  ],
+  ine_reverso: [
+    'numero_ine', // IDMEX
+    'seccion_electoral'
+  ],
+  curp: [
+    'curp',
+    'nombre_completo',
+    'fecha_nacimiento',
+    'sexo',
+    'nacionalidad',
+    'entidad_nacimiento'
+  ],
+  escritura_propiedad: [
+    'antecedente_escritura_numero',
+    'antecedente_escritura_fecha',
+    'antecedente_notario_nombre',
+    'antecedente_notario_numero',
+    'registro_numero',
+    'registro_tomo',
+    'registro_libro',
+    'registro_seccion',
+    'registro_volumen',
+    'registro_foja',
+    'inmueble_calle',
+    'inmueble_numero_lote',
+    'inmueble_numero_manzana',
+    'inmueble_fraccionamiento',
+    'inmueble_colonia',
+    'inmueble_municipio',
+    'inmueble_estado',
+    'inmueble_superficie',
+    'lindero_norte',
+    'lindero_sur',
+    'lindero_oriente',
+    'lindero_poniente',
+    'antecedente_adquirente',
+    'antecedente_enajenante'
+  ],
+  predial: [
+    'inmueble_cuenta_predial',
+    'inmueble_clave_catastral',
+    'inmueble_valor_catastral',
+    'inmueble_domicilio'
+  ],
+  avaluo: [
+    'avaluo_numero',
+    'avaluo_fecha',
+    'avaluo_valor',
+    'avaluo_perito',
+    'inmueble_superficie',
+    'inmueble_superficie_construccion'
+  ],
+  comprobante_domicilio: [
+    'domicilio_calle',
+    'domicilio_colonia',
+    'domicilio_cp',
+    'domicilio_municipio',
+    'domicilio_estado'
+  ],
+  rfc: ['rfc', 'nombre_completo', 'domicilio_fiscal'],
+  certificado_libertad_gravamen: [
+    'gravamenes',
+    'registro_numero',
+    'folio_real'
+  ],
+  acta_constitutiva: [
+    'sociedad_nombre',
+    'constitucion_escritura_numero',
+    'constitucion_escritura_fecha',
+    'constitucion_notario_nombre',
+    'constitucion_notario_numero',
+    'representante_nombre',
+    'representante_cargo'
+  ]
+};
 
-Tu tarea es extraer información de los documentos proporcionados para un trámite de tipo: "${nombreTipo}".
+// ============================================================================
+// PROMPTS POR TIPO DE DOCUMENTO
+// ============================================================================
 
-CAMPOS A EXTRAER:
-${campos.map((campo) => `- ${campo}`).join('\n')}
+function getPromptPorDocumento(tipoDocumento: string): string {
+  const prompts: Record<string, string> = {
+    ine_frente: `Analiza esta imagen de una credencial INE/IFE (frente) mexicana y extrae:
+1. Nombre completo (exactamente como aparece)
+2. Domicilio completo
+3. Fecha de nacimiento
+4. CURP (si es visible)
+5. Clave de elector
 
-INSTRUCCIONES:
-1. Analiza cuidadosamente cada documento proporcionado.
-2. Extrae los valores para cada campo solicitado.
-3. Si un campo no se puede determinar con certeza, indica que requiere revisión.
-4. Asigna un nivel de confianza (0.0 a 1.0) a cada extracción.
-5. Indica de qué documento se extrajo cada dato.
-
-RESPONDE EN EL SIGUIENTE FORMATO JSON:
+Responde en JSON con el formato:
 {
-  "datos": {
-    "nombre_campo": {
-      "valor": "valor extraído o null si no se encontró",
-      "confianza": 0.95,
-      "fuente": "INE" | "CURP" | "Escritura" | etc,
-      "requiereRevision": false
-    }
-  },
-  "camposFaltantes": ["campo1", "campo2"],
-  "sugerencias": ["Sugerencia 1", "Sugerencia 2"]
+  "nombre": "valor o null",
+  "domicilio": "valor o null",
+  "fecha_nacimiento": "DD/MM/AAAA o null",
+  "curp": "valor o null",
+  "clave_elector": "valor o null",
+  "confianza": 0.0-1.0
+}`,
+
+    ine_reverso: `Analiza esta imagen del reverso de una credencial INE/IFE mexicana y extrae:
+1. Número IDMEX (código de barras/número de identificación)
+2. Sección electoral
+
+Responde en JSON:
+{
+  "numero_ine": "valor o null",
+  "seccion_electoral": "valor o null",
+  "confianza": 0.0-1.0
+}`,
+
+    curp: `Analiza este documento de CURP y extrae:
+1. CURP completa (18 caracteres)
+2. Nombre completo
+3. Fecha de nacimiento
+4. Sexo
+5. Nacionalidad
+6. Entidad de nacimiento
+
+Responde en JSON:
+{
+  "curp": "valor",
+  "nombre_completo": "valor",
+  "fecha_nacimiento": "DD/MM/AAAA",
+  "sexo": "HOMBRE/MUJER",
+  "nacionalidad": "valor",
+  "entidad_nacimiento": "valor",
+  "confianza": 0.0-1.0
+}`,
+
+    escritura_propiedad: `Analiza esta escritura pública de propiedad y extrae los siguientes datos:
+
+DATOS DE LA ESCRITURA:
+- Número de escritura
+- Fecha de la escritura
+- Nombre del notario
+- Número de notaría
+
+DATOS DEL REGISTRO PÚBLICO:
+- Número de registro/inscripción
+- Tomo
+- Libro
+- Sección
+- Volumen
+- Foja
+- Partida
+
+DATOS DEL INMUEBLE:
+- Ubicación/calle
+- Número de lote
+- Número de manzana
+- Nombre del fraccionamiento
+- Colonia
+- Municipio
+- Estado
+- Superficie en metros cuadrados
+
+LINDEROS:
+- Al Norte (medida y colindancia)
+- Al Sur (medida y colindancia)
+- Al Oriente (medida y colindancia)
+- Al Poniente (medida y colindancia)
+
+PARTES:
+- Nombre del adquirente (quien compró)
+- Nombre del enajenante (quien vendió)
+
+Responde en JSON con todos los campos que puedas identificar.`,
+
+    predial: `Analiza este recibo de predial y extrae:
+1. Número de cuenta predial
+2. Clave catastral
+3. Valor catastral
+4. Dirección del inmueble
+
+Responde en JSON:
+{
+  "inmueble_cuenta_predial": "valor",
+  "inmueble_clave_catastral": "valor",
+  "inmueble_valor_catastral": "valor",
+  "inmueble_domicilio": "valor",
+  "confianza": 0.0-1.0
+}`,
+
+    avaluo: `Analiza este documento de avalúo y extrae:
+1. Número de avalúo
+2. Fecha del avalúo
+3. Valor del avalúo
+4. Nombre del perito valuador
+5. Superficie del terreno
+6. Superficie de construcción
+
+Responde en JSON con los campos encontrados.`
+  };
+
+  return (
+    prompts[tipoDocumento] ||
+    `Analiza este documento y extrae toda la información relevante. Responde en formato JSON.`
+  );
 }
 
-IMPORTANTE:
-- Para nombres, usa el formato "NOMBRE(S) APELLIDO_PATERNO APELLIDO_MATERNO"
-- Para CURP, verifica que tenga 18 caracteres alfanuméricos
-- Para fechas, usa formato ISO (YYYY-MM-DD)
-- Para montos, usa números sin formato (sin comas ni símbolos)
-- Si detectas inconsistencias entre documentos, márcalo como requiereRevision=true`;
-}
+// ============================================================================
+// FUNCIÓN PRINCIPAL DE EXTRACCIÓN
+// ============================================================================
 
-// Función principal de extracción
 export async function extraerDatosConIA(
   params: ExtraerDatosParams
 ): Promise<ResultadoExtraccion> {
@@ -84,53 +267,102 @@ export async function extraerDatosConIA(
   try {
     const { tipoCaso, documentos, modelo } = params;
 
-    // Obtener campos requeridos para este tipo de caso
-    const tipoCasoConfig = getTipoCasoById(tipoCaso);
-    const campos = tipoCasoConfig?.camposRequeridos.map((c) => c.nombre) || [];
-
-    if (campos.length === 0) {
+    if (documentos.length === 0) {
       return {
         exito: false,
-        error: 'Tipo de caso no tiene campos configurados',
+        error: 'No hay documentos para procesar',
         tiempoProcesamiento: Date.now() - inicio
       };
     }
 
-    // Generar prompt
-    const prompt = generarPromptExtraccion(tipoCaso, campos);
+    // Procesar cada documento
+    const resultados: Record<string, Record<string, DatoExtraido>> = {};
 
-    // Preparar descripción de documentos para el prompt
-    const documentosDescripcion = documentos
-      .map((doc) => `- ${doc.tipo}: ${doc.url}`)
-      .join('\n');
+    for (const doc of documentos) {
+      try {
+        const prompt = getPromptPorDocumento(doc.tipo);
+        let respuestaTexto: string;
 
-    const mensajeCompleto = `${prompt}\n\nDOCUMENTOS A ANALIZAR:\n${documentosDescripcion}\n\nExtrae la información de estos documentos.`;
+        // Llamar al modelo de IA correspondiente
+        switch (modelo) {
+          case 'claude':
+            respuestaTexto = await analyzeImageWithClaude(
+              doc.base64,
+              doc.mimeType as
+                | 'image/jpeg'
+                | 'image/png'
+                | 'image/webp'
+                | 'image/gif',
+              prompt
+            );
+            break;
+          case 'gpt4':
+            respuestaTexto = await analyzeImageBase64WithGPT4(
+              doc.base64,
+              doc.mimeType,
+              prompt
+            );
+            break;
+          case 'gemini':
+            respuestaTexto = await analyzeImageWithGemini(
+              doc.base64,
+              doc.mimeType,
+              prompt
+            );
+            break;
+          default:
+            respuestaTexto = await analyzeImageWithClaude(
+              doc.base64,
+              doc.mimeType as
+                | 'image/jpeg'
+                | 'image/png'
+                | 'image/webp'
+                | 'image/gif',
+              prompt
+            );
+        }
 
-    // Llamar al modelo de IA correspondiente
-    let respuesta: string;
+        // Parsear respuesta JSON
+        const datosDoc = parsearRespuestaIA(respuestaTexto, doc.tipo);
 
-    switch (modelo) {
-      case 'claude':
-        respuesta = await llamarClaude(mensajeCompleto);
-        break;
-      case 'gpt4':
-        respuesta = await llamarGPT4(mensajeCompleto);
-        break;
-      case 'gemini':
-        respuesta = await llamarGemini(mensajeCompleto);
-        break;
-      default:
-        respuesta = await llamarClaude(mensajeCompleto);
+        // Agregar a resultados
+        if (!resultados[doc.tipo]) {
+          resultados[doc.tipo] = {};
+        }
+
+        for (const [campo, valor] of Object.entries(datosDoc)) {
+          resultados[doc.tipo][campo] = {
+            valor: valor as string,
+            confianza: datosDoc.confianza || 0.7,
+            fuente: getNombreDocumento(doc.tipo),
+            requiereRevision: (datosDoc.confianza || 0.7) < 0.8
+          };
+        }
+      } catch (docError) {
+        console.error(`Error procesando documento ${doc.tipo}:`, docError);
+        // Continuar con el siguiente documento
+      }
     }
 
-    // Parsear respuesta JSON
-    const resultado = parsearRespuestaIA(respuesta);
+    // Consolidar datos extraídos
+    const datosConsolidados = consolidarDatos(resultados, tipoCaso);
+
+    // Identificar campos faltantes
+    const tipoCasoConfig = getTipoCasoById(tipoCaso);
+    const camposRequeridos =
+      tipoCasoConfig?.camposRequeridos
+        .filter((c) => c.requerido)
+        .map((c) => c.id) || [];
+
+    const camposFaltantes = camposRequeridos.filter(
+      (campo) => !datosConsolidados.general?.[campo]?.valor
+    );
 
     return {
       exito: true,
-      datosExtraidos: resultado.datos,
-      camposFaltantes: resultado.camposFaltantes,
-      sugerencias: resultado.sugerencias,
+      datosExtraidos: datosConsolidados,
+      camposFaltantes,
+      sugerencias: generarSugerencias(camposFaltantes),
       tiempoProcesamiento: Date.now() - inicio
     };
   } catch (error) {
@@ -143,93 +375,161 @@ export async function extraerDatosConIA(
   }
 }
 
-// Llamar a Claude
-async function llamarClaude(prompt: string): Promise<string> {
-  const client = getClaudeClient();
+// ============================================================================
+// FUNCIONES AUXILIARES
+// ============================================================================
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    messages: [
-      {
-        role: 'user',
-        content: prompt
-      }
-    ]
-  });
-
-  const textContent = response.content.find((c) => c.type === 'text');
-  return textContent?.text || '';
-}
-
-// Llamar a GPT-4
-async function llamarGPT4(prompt: string): Promise<string> {
-  const client = getOpenAIClient();
-
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o',
-    max_tokens: 4096,
-    messages: [
-      {
-        role: 'user',
-        content: prompt
-      }
-    ]
-  });
-
-  return response.choices[0]?.message?.content || '';
-}
-
-// Llamar a Gemini
-async function llamarGemini(prompt: string): Promise<string> {
-  const client = getGeminiClient();
-
-  const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-
-  return response.text();
-}
-
-// Parsear respuesta de la IA
-function parsearRespuestaIA(respuesta: string): {
-  datos: Record<string, Record<string, DatoExtraido>>;
-  camposFaltantes: string[];
-  sugerencias: string[];
-} {
+function parsearRespuestaIA(
+  respuesta: string,
+  tipoDocumento: string
+): Record<string, any> {
   try {
-    // Intentar extraer JSON de la respuesta
+    // Buscar JSON en la respuesta
     const jsonMatch = respuesta.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('No se encontró JSON en la respuesta');
+      console.warn('No se encontró JSON en la respuesta');
+      return { confianza: 0.3 };
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
+    return parsed;
+  } catch (error) {
+    console.error('Error parseando respuesta:', error);
+    return { confianza: 0.3 };
+  }
+}
 
-    // Organizar datos por sección
-    const datosOrganizados: Record<string, Record<string, DatoExtraido>> = {
-      general: {}
-    };
+function getNombreDocumento(tipo: string): string {
+  const nombres: Record<string, string> = {
+    ine_frente: 'INE (Frente)',
+    ine_reverso: 'INE (Reverso)',
+    curp: 'CURP',
+    escritura_propiedad: 'Escritura de Propiedad',
+    predial: 'Recibo Predial',
+    avaluo: 'Avalúo',
+    comprobante_domicilio: 'Comprobante de Domicilio',
+    rfc: 'Constancia RFC',
+    certificado_libertad_gravamen: 'Certificado de Libertad de Gravamen',
+    acta_constitutiva: 'Acta Constitutiva'
+  };
+  return nombres[tipo] || tipo;
+}
 
-    if (parsed.datos) {
-      for (const [campo, valor] of Object.entries(parsed.datos)) {
-        datosOrganizados.general[campo] = valor as DatoExtraido;
+function consolidarDatos(
+  resultadosPorDocumento: Record<string, Record<string, DatoExtraido>>,
+  tipoCaso: string
+): Record<string, Record<string, DatoExtraido>> {
+  const consolidado: Record<string, Record<string, DatoExtraido>> = {
+    general: {}
+  };
+
+  // Mapeo de campos extraídos a campos del formulario
+  const mapeo: Record<string, string> = {
+    // INE -> Vendedor (por defecto, se puede reasignar)
+    nombre: 'vendedor_nombre',
+    domicilio: 'vendedor_domicilio',
+    fecha_nacimiento: 'vendedor_fecha_nacimiento',
+    curp: 'vendedor_curp',
+    numero_ine: 'vendedor_ine',
+
+    // CURP
+    nombre_completo: 'vendedor_nombre',
+    nacionalidad: 'vendedor_nacionalidad',
+
+    // Escritura
+    antecedente_escritura_numero: 'antecedente_escritura_numero',
+    antecedente_escritura_fecha: 'antecedente_escritura_fecha',
+    antecedente_notario_nombre: 'antecedente_notario_nombre',
+    antecedente_notario_numero: 'antecedente_notario_numero',
+    registro_numero: 'registro_numero',
+    registro_tomo: 'registro_tomo',
+    registro_libro: 'registro_libro',
+    registro_seccion: 'registro_seccion',
+    registro_volumen: 'registro_volumen',
+    registro_foja: 'registro_foja',
+
+    // Inmueble
+    inmueble_calle: 'inmueble_calle',
+    inmueble_numero_lote: 'inmueble_numero_lote',
+    inmueble_numero_manzana: 'inmueble_numero_manzana',
+    inmueble_fraccionamiento: 'inmueble_fraccionamiento',
+    inmueble_colonia: 'inmueble_colonia',
+    inmueble_municipio: 'inmueble_municipio',
+    inmueble_estado: 'inmueble_estado',
+    inmueble_superficie: 'inmueble_superficie',
+    inmueble_cuenta_predial: 'inmueble_cuenta_predial',
+    inmueble_clave_catastral: 'inmueble_clave_catastral',
+    inmueble_valor_catastral: 'inmueble_valor_catastral',
+
+    // Linderos
+    lindero_norte: 'lindero_norte',
+    lindero_sur: 'lindero_sur',
+    lindero_oriente: 'lindero_oriente',
+    lindero_poniente: 'lindero_poniente',
+
+    // Avalúo
+    avaluo_numero: 'avaluo_numero',
+    avaluo_fecha: 'avaluo_fecha',
+    avaluo_valor: 'avaluo_valor',
+    avaluo_perito: 'avaluo_perito',
+
+    // RFC
+    rfc: 'vendedor_rfc'
+  };
+
+  // Consolidar todos los datos
+  for (const [tipoDoc, datos] of Object.entries(resultadosPorDocumento)) {
+    for (const [campo, valor] of Object.entries(datos)) {
+      if (campo === 'confianza') continue;
+
+      const campoDestino = mapeo[campo] || campo;
+
+      // Si ya existe el campo, mantener el de mayor confianza
+      if (consolidado.general[campoDestino]) {
+        if (valor.confianza > consolidado.general[campoDestino].confianza) {
+          consolidado.general[campoDestino] = valor;
+        }
+      } else {
+        consolidado.general[campoDestino] = valor;
       }
     }
-
-    return {
-      datos: datosOrganizados,
-      camposFaltantes: parsed.camposFaltantes || [],
-      sugerencias: parsed.sugerencias || []
-    };
-  } catch (error) {
-    console.error('Error al parsear respuesta de IA:', error);
-    return {
-      datos: {},
-      camposFaltantes: [],
-      sugerencias: [
-        'Error al procesar la respuesta de la IA. Por favor, revise los datos manualmente.'
-      ]
-    };
   }
+
+  return consolidado;
+}
+
+function generarSugerencias(camposFaltantes: string[]): string[] {
+  const sugerencias: string[] = [];
+
+  if (camposFaltantes.some((c) => c.includes('vendedor'))) {
+    sugerencias.push(
+      'Sube el INE del vendedor para extraer sus datos personales'
+    );
+  }
+  if (camposFaltantes.some((c) => c.includes('comprador'))) {
+    sugerencias.push(
+      'Sube el INE del comprador para extraer sus datos personales'
+    );
+  }
+  if (
+    camposFaltantes.some(
+      (c) => c.includes('antecedente') || c.includes('registro')
+    )
+  ) {
+    sugerencias.push(
+      'Sube la escritura de propiedad para extraer los antecedentes registrales'
+    );
+  }
+  if (
+    camposFaltantes.some((c) => c.includes('inmueble') || c.includes('lindero'))
+  ) {
+    sugerencias.push(
+      'Sube la escritura anterior o el avalúo para los datos del inmueble'
+    );
+  }
+  if (camposFaltantes.some((c) => c.includes('precio'))) {
+    sugerencias.push('El precio de venta debe ser ingresado manualmente');
+  }
+
+  return sugerencias;
 }
