@@ -1,13 +1,8 @@
-// app/casos/page.tsx
-import Link from 'next/link';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db/prisma';
-import { redirect } from 'next/navigation';
-import type { Caso, Documento } from '@/types/prisma';
+// app/casos/[id]/page.tsx
 
-type CasoConDocumentos = Caso & {
-  documentos: Pick<Documento, 'id' | 'tipo' | 'status'>[];
-};
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { prisma } from '@/lib/db/prisma';
 
 const getStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -25,7 +20,11 @@ const getStatusColor = (status: string) => {
       'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
     COMPLETADO:
       'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    ERROR: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+    ERROR: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    BORRADOR: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    APROBADO:
+      'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    IMPRESO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
   };
   return colors[status] || colors.TRANSCRIBIENDO;
 };
@@ -39,129 +38,101 @@ const getStatusLabel = (status: string) => {
     GENERANDO_DOCUMENTO: 'Generando Documento',
     EN_REVISION: 'En Revisión',
     COMPLETADO: 'Completado',
-    ERROR: 'Error'
+    ERROR: 'Error',
+    BORRADOR: 'Borrador',
+    APROBADO: 'Aprobado',
+    IMPRESO: 'Impreso'
   };
   return labels[status] || status;
 };
 
-const getTipoNombre = (tipo: string | null) => {
+const getTipoCasoNombre = (tipo: string) => {
   const nombres: Record<string, string> = {
     compraventa_inmueble: 'Compraventa de Inmueble',
     poder_notarial: 'Poder Notarial',
-    testamento: 'Testamento',
+    testamento: 'Testamento Público Abierto',
     constitucion_sociedad: 'Constitución de Sociedad',
     acta_asamblea: 'Acta de Asamblea',
     contrato_arrendamiento: 'Contrato de Arrendamiento'
   };
-  return nombres[tipo || ''] || tipo || 'Sin tipo';
+  return nombres[tipo] || tipo;
 };
 
-export default async function CasosPage() {
-  const session = await auth();
+export default async function CasoDetailPage({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-  if (!session?.user?.id) {
-    redirect('/login');
-  }
-
-  const userId = session.user.id;
-
-  // Obtener casos del usuario
-  const casos = await prisma.caso.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
+  // Obtener caso de la base de datos
+  const caso = await prisma.caso.findUnique({
+    where: { id },
     include: {
       documentos: {
-        select: { id: true, tipo: true, status: true }
+        orderBy: { createdAt: 'desc' }
+      },
+      user: {
+        select: { name: true, email: true }
       }
     }
   });
 
-  // Calcular estadísticas
-  const totalCasos = casos.length;
-  const casosActivos = casos.filter(
-    (c: CasoConDocumentos) => !['COMPLETADO', 'ERROR'].includes(c.status)
-  ).length;
-  const casosCompletados = casos.filter(
-    (c: CasoConDocumentos) => c.status === 'COMPLETADO'
-  ).length;
-  const casosEnRevision = casos.filter((c: CasoConDocumentos) =>
-    ['EN_REVISION', 'REQUIERE_INFO'].includes(c.status)
-  ).length;
+  if (!caso) {
+    notFound();
+  }
+
+  const extractedData = (caso.extractedData as Record<string, any>) || {};
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Back Button */}
+      <Link
+        href="/casos"
+        className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Volver a Casos
+      </Link>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Casos
+            {getTipoCasoNombre(caso.documentType || '')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Gestiona todos tus casos notariales
+            Caso ID: {caso.id.slice(0, 8)}...
           </p>
         </div>
-        <Link
-          href="/casos/nuevo"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <span
+          className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(
+            caso.status
+          )}`}
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Nuevo Caso
-        </Link>
+          {getStatusLabel(caso.status)}
+        </span>
       </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {totalCasos}
-          </p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            Activos
-          </p>
-          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {casosActivos}
-          </p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            Completados
-          </p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {casosCompletados}
-          </p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            En Revisión
-          </p>
-          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-            {casosEnRevision}
-          </p>
-        </div>
-      </div>
-
-      {/* Cases Table or Empty State */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {casos.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+      {/* Info Cards */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
               <svg
-                className="w-10 h-10 text-gray-400"
+                className="w-5 h-5 text-blue-600 dark:text-blue-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -170,23 +141,27 @@ export default async function CasosPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              No tienes casos todavía
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Fecha de Creación
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Comienza creando tu primer caso. Podrás subir documentos, extraer
-              información con IA y generar documentos legales automáticamente.
-            </p>
-            <Link
-              href="/casos/nuevo"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">
+            {new Date(caso.createdAt).toLocaleString('es-MX', {
+              dateStyle: 'long',
+              timeStyle: 'short'
+            })}
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 text-green-600 dark:text-green-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -195,78 +170,127 @@ export default async function CasosPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 4v16m8-8H4"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                 />
               </svg>
-              Crear Primer Caso
-            </Link>
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Documentos
+            </h3>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Tipo de Documento
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Documentos
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Modelo IA
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {casos.map((caso: CasoConDocumentos) => (
-                  <tr
-                    key={caso.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          <p className="text-gray-600 dark:text-gray-400">
+            {caso.documentos.length} generado
+            {caso.documentos.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+              <svg
+                className="w-5 h-5 text-purple-600 dark:text-purple-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Modelo IA
+            </h3>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 capitalize">
+            {caso.aiModel || 'No especificado'}
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Extracted Data */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Datos Extraídos
+            </h2>
+          </div>
+          <div className="p-6 max-h-[500px] overflow-y-auto">
+            {Object.keys(extractedData).length > 0 ? (
+              <dl className="space-y-4">
+                {Object.entries(extractedData).map(([seccion, campos]) => (
+                  <div key={seccion}>
+                    <dt className="text-sm font-semibold text-gray-900 dark:text-white mb-2 capitalize border-b border-gray-200 dark:border-gray-700 pb-1">
+                      {seccion.replace(/_/g, ' ')}
+                    </dt>
+                    <dd className="text-sm text-gray-600 dark:text-gray-400">
+                      {typeof campos === 'object' && campos !== null ? (
+                        <ul className="ml-4 space-y-1">
+                          {Object.entries(campos).map(
+                            ([campo, valor]: [string, any]) => (
+                              <li key={campo}>
+                                <span className="font-medium capitalize">
+                                  {campo.replace(/_/g, ' ')}:
+                                </span>{' '}
+                                {valor?.valor || String(valor) || 'N/A'}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      ) : (
+                        String(campos)
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <div className="text-center py-8">
+                <svg
+                  className="w-12 h-12 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400">
+                  No hay datos extraídos aún.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Documents List */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Documentos Generados
+            </h2>
+          </div>
+          <div className="p-6">
+            {caso.documentos.length > 0 ? (
+              <div className="space-y-4">
+                {caso.documentos.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <svg
-                            className="w-4 h-4 text-blue-600 dark:text-blue-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getTipoNombre(caso.documentType)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                          caso.status
-                        )}`}
-                      >
-                        {getStatusLabel(caso.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
                         <svg
-                          className="w-4 h-4"
+                          className="w-6 h-6 text-blue-600 dark:text-blue-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -278,33 +302,151 @@ export default async function CasosPage() {
                             d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                           />
                         </svg>
-                        {caso.documentos.length}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 capitalize">
-                      {caso.aiModel || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(caso.createdAt).toLocaleDateString('es-MX', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white capitalize">
+                          {doc.tipo.replace(/_/g, ' ')}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span
+                            className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(
+                              doc.status
+                            )}`}
+                          >
+                            {getStatusLabel(doc.status)}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            v{doc.version}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {new Date(doc.createdAt).toLocaleDateString(
+                              'es-MX'
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Enlace a la página del documento */}
                       <Link
-                        href={`/casos/${caso.id}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        href={`/documentos/${doc.id}`}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2 transition-colors"
                       >
-                        Ver detalles
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                        Ver y Editar
                       </Link>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <svg
+                  className="w-12 h-12 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  No hay documentos generados aún.
+                </p>
+                <Link
+                  href={`/casos/nuevo`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Generar Documento
+                </Link>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-8 flex items-center justify-between">
+        <Link
+          href="/casos"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Volver a Lista
+        </Link>
+        <div className="flex items-center gap-3">
+          {caso.status === 'EN_REVISION' && (
+            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Marcar como Completado
+            </button>
+          )}
+          <Link
+            href="/casos/nuevo"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Nuevo Caso
+          </Link>
+        </div>
       </div>
     </div>
   );
