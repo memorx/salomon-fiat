@@ -13,6 +13,7 @@ interface GenerarDocumentoParams {
   tipoCaso: string;
   datos: Record<string, any>;
   plantillaId?: string;
+  plantilla?: string; // Contenido de la plantilla
   modelo: 'claude' | 'gpt4' | 'gemini';
   usarPlantillaBase?: boolean;
 }
@@ -73,14 +74,10 @@ El inmueble objeto de esta escritura se encuentra inscrito en el Registro Públi
 
 **IV.** Declaran ambas partes que el inmueble se encuentra al corriente en el pago del Impuesto Predial, según consta en el recibo de pago con cuenta predial número **{{inmueble_cuenta_predial}}**.
 
-**V.** Declaran las partes que el inmueble tiene asignada la clave catastral número **{{inmueble_clave_catastral}}**{{#if inmueble_valor_catastral}}, con valor catastral de ${{
-  inmueble_valor_catastral
-}} ({{inmueble_valor_catastral_letra}} PESOS 00/100 M.N.){{/if}}.
+**V.** Declaran las partes que el inmueble tiene asignada la clave catastral número **{{inmueble_clave_catastral}}**{{#if inmueble_valor_catastral}}, con valor catastral de \${{inmueble_valor_catastral}} ({{inmueble_valor_catastral_letra}} PESOS 00/100 M.N.){{/if}}.
 
 {{#if avaluo_numero}}
-**VI.** El avalúo del inmueble fue practicado por el perito valuador **{{avaluo_perito}}**, con número de avalúo {{avaluo_numero}}, de fecha {{avaluo_fecha}}, arrojando un valor comercial de ${{
-  avaluo_valor
-}} ({{avaluo_valor_letra}} PESOS 00/100 M.N.).
+**VI.** El avalúo del inmueble fue practicado por el perito valuador **{{avaluo_perito}}**, con número de avalúo {{avaluo_numero}}, de fecha {{avaluo_fecha}}, arrojando un valor comercial de \${{avaluo_valor}} ({{avaluo_valor_letra}} PESOS 00/100 M.N.).
 {{/if}}
 
 ---
@@ -89,9 +86,7 @@ El inmueble objeto de esta escritura se encuentra inscrito en el Registro Públi
 
 **PRIMERA.- OBJETO DEL CONTRATO.** La parte vendedora vende, cede y transfiere en pleno dominio a la parte compradora, y ésta adquiere, el inmueble descrito en este instrumento.
 
-**SEGUNDA.- PRECIO.** El precio pactado por la compraventa es la cantidad de **${{
-  operacion_precio
-}}** (**{{operacion_precio_letra}} PESOS 00/100 MONEDA NACIONAL**), que la parte compradora paga a la parte vendedora en este acto mediante {{operacion_forma_pago}}, por lo que la parte vendedora otorga el más amplio recibo que en derecho proceda.
+**SEGUNDA.- PRECIO.** El precio pactado por la compraventa es la cantidad de **\${{operacion_precio}}** (**{{operacion_precio_letra}} PESOS 00/100 MONEDA NACIONAL**), que la parte compradora paga a la parte vendedora en este acto mediante {{operacion_forma_pago}}, por lo que la parte vendedora otorga el más amplio recibo que en derecho proceda.
 
 **TERCERA.- UBICACIÓN DEL INMUEBLE.** El inmueble objeto de este contrato se encuentra ubicado en:
 
@@ -183,14 +178,24 @@ export async function generarDocumentoConIA(
   const inicio = Date.now();
 
   try {
-    const { tipoCaso, datos, modelo, usarPlantillaBase = true } = params;
+    const {
+      tipoCaso,
+      datos,
+      modelo,
+      usarPlantillaBase = true,
+      plantilla: plantillaProporcionada
+    } = params;
 
     console.log(`Generando documento para: ${tipoCaso}`);
     console.log(`Datos recibidos: ${Object.keys(datos).length} campos`);
 
-    // Obtener plantilla según tipo de caso
-    let plantilla = '';
-    if (usarPlantillaBase && tipoCaso === 'compraventa_inmueble') {
+    // Obtener plantilla según tipo de caso o usar la proporcionada
+    let plantilla = plantillaProporcionada || '';
+    if (
+      !plantilla &&
+      usarPlantillaBase &&
+      tipoCaso === 'compraventa_inmueble'
+    ) {
       plantilla = PLANTILLA_COMPRAVENTA;
     }
 

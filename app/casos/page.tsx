@@ -3,6 +3,11 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
 import { redirect } from 'next/navigation';
+import type { Caso, Documento } from '@/types/prisma';
+
+type CasoConDocumentos = Caso & {
+  documentos: Pick<Documento, 'id' | 'tipo' | 'status'>[];
+};
 
 const getStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -74,12 +79,12 @@ export default async function CasosPage() {
   // Calcular estadísticas
   const totalCasos = casos.length;
   const casosActivos = casos.filter(
-    (c) => !['COMPLETADO', 'ERROR'].includes(c.status)
+    (c: CasoConDocumentos) => !['COMPLETADO', 'ERROR'].includes(c.status)
   ).length;
   const casosCompletados = casos.filter(
-    (c) => c.status === 'COMPLETADO'
+    (c: CasoConDocumentos) => c.status === 'COMPLETADO'
   ).length;
-  const casosEnRevision = casos.filter((c) =>
+  const casosEnRevision = casos.filter((c: CasoConDocumentos) =>
     ['EN_REVISION', 'REQUIERE_INFO'].includes(c.status)
   ).length;
 
@@ -222,7 +227,7 @@ export default async function CasosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {casos.map((caso) => (
+                {casos.map((caso: CasoConDocumentos) => (
                   <tr
                     key={caso.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"

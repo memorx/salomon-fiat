@@ -3,6 +3,12 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
 import { redirect } from 'next/navigation';
+import type { Caso, Documento } from '@/types/prisma';
+
+// Tipo para caso con documentos incluidos
+type CasoConDocumentos = Caso & {
+  documentos: Pick<Documento, 'id' | 'tipo' | 'status'>[];
+};
 
 const getStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -346,7 +352,7 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {casosRecientes.map((caso) => (
+                  {casosRecientes.map((caso: CasoConDocumentos) => (
                     <tr
                       key={caso.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
