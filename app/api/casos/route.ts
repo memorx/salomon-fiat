@@ -1,9 +1,11 @@
+// app/api/casos/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { auth } from '@/lib/auth';
 
 // GET /api/casos - Listar todos los casos del usuario
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
 

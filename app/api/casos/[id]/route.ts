@@ -1,71 +1,131 @@
-// app/api/casos/route.ts
+// app/api/casos/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { auth } from '@/lib/auth';
 
-// GET /api/casos - Listar todos los casos del usuario
-export async function GET(request: NextRequest) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+// GET /api/casos/[id] - Obtener un caso específico
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
+    const session = await auth();
 
-    const casos = await prisma.caso.findMany({
-      where: { userId },
-      include: {
-        documentos: {
-          select: {
-            id: true,
-            tipo: true,
-            status: true
-          }
-        }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { id: casoId } = await params;
+
+    const caso = await prisma.caso.findFirst({
+      where: {
+        id: casoId,
+        userId: session.user.id
       },
-      orderBy: { createdAt: 'desc' }
+      include: {
+        documentos: true
+      }
     });
 
-    return NextResponse.json({ casos });
+    if (!caso) {
+      return NextResponse.json(
+        { error: 'Caso no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ caso });
   } catch (error) {
-    console.error('Error al obtener casos:', error);
+    console.error('Error al obtener caso:', error);
     return NextResponse.json(
-      { error: 'Error al obtener los casos' },
+      { error: 'Error al obtener el caso' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/casos - Crear un nuevo caso
-export async function POST(request: NextRequest) {
+// PATCH /api/casos/[id] - Actualizar un caso
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const body = await request.json();
-    const { tipoCaso, aiModel = 'claude' } = body;
+    const session = await auth();
 
-    // Validar tipo de caso
-    if (!tipoCaso) {
-      return NextResponse.json(
-        { error: 'El tipo de caso es requerido' },
-        { status: 400 }
-      );
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // TODO: Obtener userId de la sesión con NextAuth
-    const userId = 'user-temp-id'; // Temporal hasta implementar auth
+    const { id: casoId } = await params;
 
-    // Crear el caso en la base de datos
-    const caso = await prisma.caso.create({
-      data: {
-        userId,
-        documentType: tipoCaso,
-        aiModel,
-        status: 'TRANSCRIBIENDO', // Estado inicial (cambiaremos el nombre después)
-        extractedData: {}
+    // Verificar que el caso pertenece al usuario
+    const casoExistente = await prisma.caso.findFirst({
+      where: {
+        id: casoId,
+        userId: session.user.id
       }
     });
 
-    return NextResponse.json({ caso }, { status: 201 });
+    if (!casoExistente) {
+      return NextResponse.json(
+        { error: 'Caso no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Actualizar el caso
+    const caso = await prisma.caso.update({
+      where: { id: casoId },
+      data: body
+    });
+
+    return NextResponse.json({ caso });
   } catch (error) {
-    console.error('Error al crear caso:', error);
+    console.error('Error al actualizar caso:', error);
     return NextResponse.json(
-      { error: 'Error al crear el caso' },
+      { error: 'Error al actualizar el caso' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/casos/[id] - Eliminar un caso
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { id: casoId } = await params;
+
+    // Verificar que el caso pertenece al usuario
+    const casoExistente = await prisma.caso.findFirst({
+      where: {
+        id: casoId,
+        userId: session.user.id
+      }
+    });
+
+    if (!casoExistente) {
+      return NextResponse.json(
+        { error: 'Caso no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    // Eliminar el caso (los documentos se eliminan en cascada por la relación en Prisma)
+    await prisma.caso.delete({
+      where: { id: casoId }
+    });
+
+    return NextResponse.json({ message: 'Caso eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar caso:', error);
+    return NextResponse.json(
+      { error: 'Error al eliminar el caso' },
       { status: 500 }
     );
   }

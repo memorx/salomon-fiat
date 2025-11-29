@@ -23,7 +23,6 @@ export default function RegistroPage() {
     setLoading(true);
     setError('');
 
-    // Validar contraseñas
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       setLoading(false);
@@ -96,7 +95,6 @@ export default function RegistroPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo y título */}
         <div className="text-center">
           <div className="mx-auto w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
             <span className="text-white font-bold text-3xl">S</span>
@@ -109,17 +107,14 @@ export default function RegistroPage() {
           </p>
         </div>
 
-        {/* Formulario */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-            {/* Error message */}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Nombre */}
             <div>
               <label
                 htmlFor="name"
@@ -142,7 +137,6 @@ export default function RegistroPage() {
               />
             </div>
 
-            {/* Email */}
             <div>
               <label
                 htmlFor="email"
@@ -165,7 +159,6 @@ export default function RegistroPage() {
               />
             </div>
 
-            {/* Password */}
             <div>
               <label
                 htmlFor="password"
@@ -188,7 +181,6 @@ export default function RegistroPage() {
               />
             </div>
 
-            {/* Confirm Password */}
             <div>
               <label
                 htmlFor="confirmPassword"
@@ -211,7 +203,6 @@ export default function RegistroPage() {
               />
             </div>
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
@@ -220,7 +211,6 @@ export default function RegistroPage() {
               {loading ? (
                 <svg
                   className="animate-spin h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -244,7 +234,6 @@ export default function RegistroPage() {
             </button>
           </div>
 
-          {/* Link a login */}
           <p className="text-center text-sm text-gray-600 dark:text-gray-400">
             ¿Ya tienes cuenta?{' '}
             <Link
